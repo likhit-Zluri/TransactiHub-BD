@@ -1,0 +1,25 @@
+{
+	"name": "csv-transactions-manager",
+	"version": "1.0.0",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"start": "npx tsx --env-file=.env --watch src/index.ts",
+		"dev": "nodemon --watch src --ext ts --exec \"npx tsx src/index.ts\""
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"dependencies": {
+		"express": "^4.21.2",
+		"mikro-orm": "^6.4.2",
+		"nodemon": "^3.1.9",
+		"pg": "^8.13.1"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.0",
+		"@types/node": "^22.10.5",
+		"jest": "^29.7.0"
+	}
+}
