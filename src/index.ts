@@ -1,12 +1,26 @@
 import express, { Request, Response } from "express";
+import pool from "../config/database"; 
 
-// instantiation of express
+// Instantiate express
 const app = express();
 
-// default post value
+// Default port value
 const port = process.env.PORT || 3000;
 
-// default home path
+// Middleware to parse JSON
+app.use(express.json());
+
+// Verify database connection
+pool
+	.connect()
+	.then(() => {
+		console.log("Connected to the database successfully");
+	})
+	.catch((err) => {
+		console.error("Error connecting to the database:", err.stack);
+	});
+
+// Default home route
 app.get("/", (req: Request, res: Response) => {
 	res.json({ message: "Welcome to the Server!" });
 });
