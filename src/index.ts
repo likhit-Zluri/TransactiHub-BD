@@ -27,12 +27,21 @@ initializeORM();
 // 	});
 
 // Default home route
-
 app.get("/", (req: Request, res: Response) => {
-	res.json({ message: "Welcome to the Server!" });
+	res.status(200).send("Server is up and running");
+});
+
+// Middleware for handling undefined routes
+app.use((req, res) => {
+	res.status(404).json({
+		error: "Route not found",
+		message: `Cannot ${req.method} ${req.originalUrl}`,
+	});
 });
 
 // Start the server
-app.listen(port, () => {
+const server = app.listen(port, () => {
 	console.log(`The server is running at port ${port}`);
 });
+
+export { app, server };
