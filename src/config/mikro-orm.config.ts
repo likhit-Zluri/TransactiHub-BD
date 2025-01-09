@@ -7,7 +7,7 @@ import { config } from "dotenv";
 import { Transaction } from "../entities/Transaction";
 config();
 
-const mikroOrmConfig: Options = {
+const mikroOrmDeafultConfig: Options = {
 	driver: PostgreSqlDriver, // Use the correct driver
 	entities: [Transaction], // MikroORM entities
 	dbName: process.env.DB_NAME, // Database name
@@ -20,11 +20,16 @@ const mikroOrmConfig: Options = {
 
 	// extensions: [SeedManager, Migrator],
 };
-export default mikroOrmConfig;
+export default mikroOrmDeafultConfig;
 
-export async function initializeORM() {
+export async function initializeORM(customConfig?: Options) {
 	try {
-		const orm = await MikroORM.init(mikroOrmConfig);
+		const finalConfig = {
+			...mikroOrmDeafultConfig,
+			...customConfig,
+		};
+		console.log("finalConfig", finalConfig);
+		const orm = await MikroORM.init(finalConfig);
 		// console.log("MikroORM initialized successfully.");
 
 		return orm;
