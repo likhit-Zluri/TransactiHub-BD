@@ -14,8 +14,8 @@ router.post("/addTransaction", addTransaction);
 // Get all transaction
 router.get("/getAllTransactions", getAllTransactions);
 
-router.get("/softDeleteTransaction", softDeleteTransaction);
+router.delete("/softDeleteTransaction", softDeleteTransaction);
 
-router.get("/hardDeleteTransaction", hardDeleteTransaction);
+router.post("/hardDeleteTransaction", hardDeleteTransaction);
 
 export default router;
