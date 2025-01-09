@@ -74,6 +74,7 @@ public/static/
 
 # Jest testing coverage
 coverage/
+tests/
 
 # Logs
 *.log
