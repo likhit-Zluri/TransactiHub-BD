@@ -28,7 +28,9 @@ export async function initializeORM(customConfig?: Options) {
 			...mikroOrmDeafultConfig,
 			...customConfig,
 		};
-		console.log("finalConfig", finalConfig);
+
+		// console.log("finalConfig", finalConfig);
+
 		const orm = await MikroORM.init(finalConfig);
 		// console.log("MikroORM initialized successfully.");
 
