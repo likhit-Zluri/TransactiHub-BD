@@ -10,7 +10,7 @@ import { Transaction } from "./entities/Transaction";
 const app = express();
 
 // Default port value
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 0; // 0 means it will use any available port
 
 // Middleware to parse JSON
 app.use(express.json());
