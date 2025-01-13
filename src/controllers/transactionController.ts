@@ -3,8 +3,6 @@ import { initializeORM } from "../config/mikro-orm.config";
 import { Transaction } from "../entities/Transaction";
 import { parseCSV } from "../services/csvParserService";
 import { TransactionInput, validateTransaction } from "../utils/validators";
-import { runInNewContext } from "vm";
-import request from "supertest";
 
 export const getEntityManager = async () => {
 	const orm = await initializeORM(); // Initialize ORM
