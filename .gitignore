@@ -81,3 +81,9 @@ tests/
 
 # Yarn integrity file
 .yarn-integrity
+
+#sample csv files
+**.csv
+
+#notes
+/notes.md
