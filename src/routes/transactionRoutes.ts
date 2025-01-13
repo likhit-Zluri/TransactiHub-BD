@@ -1,13 +1,11 @@
 import express from "express";
 import {
-	addTransaction,
 	getAllTransactions,
 	softDeleteTransaction,
 	hardDeleteTransaction,
 	hardDeleteAllTransactions,
 	softDeleteAllTransactions,
-	processCSVTransactions,
-	bulkAdd,
+	processTransactions,
 } from "../controllers/transactionController";
 
 // import multer from "multer";
@@ -19,7 +17,7 @@ const router = express.Router();
 
 // Add a single transaction
 // router.post("/addTransaction", addTransaction);
-router.post("/addTransaction", processCSVTransactions);
+router.post("/addTransaction", processTransactions);
 
 // Get all transaction
 router.get("/getAllTransactions", getAllTransactions);
@@ -29,8 +27,7 @@ router.delete("/softDeleteTransaction", softDeleteTransaction);
 router.delete("/hardDeleteTransaction", hardDeleteTransaction);
 
 // Uploading CSV
-router.post("/uploadCSV", handleUpload, processCSVTransactions);
-router.post("/bulkAdd", handleUpload, bulkAdd);
+router.post("/processCSV", handleUpload, processTransactions);
 
 router.delete("/softDeleteAllTransactions", softDeleteAllTransactions);
 

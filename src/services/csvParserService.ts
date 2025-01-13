@@ -18,13 +18,20 @@ export const parseCSV = (buffer: Buffer): Promise<any[]> => {
 				if (Object.keys(data)[0].charCodeAt(0) === 0xfeff) {
 					const cleanedData = Object.fromEntries(
 						Object.entries(data).map(([key, value]) => [
-							key.replace(/^﻿/, ""), // Remove BOM character from key
+							key.replace(/^﻿/, "").toLowerCase(), // Remove BOM character and convert to lowercase
 							value,
 						])
 					);
 					results.push(cleanedData);
 				} else {
-					results.push(data);
+					// Convert all keys to lowercase
+					const cleanedData = Object.fromEntries(
+						Object.entries(data).map(([key, value]) => [
+							key.toLowerCase(), // Convert key to lowercase
+							value,
+						])
+					);
+					results.push(cleanedData);
 				}
 			})
 			.on("end", () => resolve(results))

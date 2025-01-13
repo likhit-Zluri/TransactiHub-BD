@@ -17,14 +17,13 @@
         },
         "date": {
           "name": "date",
-          "type": "timestamptz",
-
+          "type": "varchar(255)",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "length": 6,
-          "mappedType": "datetime"
+          "length": 255,
+          "mappedType": "string"
         },
         "description": {
           "name": "description",
@@ -89,6 +88,17 @@
       "name": "transaction",
       "schema": "public",
       "indexes": [
+        {
+          "keyName": "transaction_date_description_unique",
+          "columnNames": [
+            "date",
+            "description"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
         {
           "keyName": "transaction_pkey",
           "columnNames": [
