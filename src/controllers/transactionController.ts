@@ -1,103 +1,17 @@
 import { Application, Request, response, Response } from "express";
-import { initializeORM } from "../config/mikro-orm.config";
+
 import { Transaction } from "../entities/Transaction";
 import { parseCSV } from "../services/csvParserService";
-import { TransactionInput, validateTransaction } from "../utils/validators";
 
-export const getEntityManager = async () => {
-	const orm = await initializeORM(); // Initialize ORM
-	const em = orm.em.fork(); // Get an isolated EntityManager instance
-
-	return em;
-};
+import {
+	TransactionInput,
+	validateTransaction,
+	validateCSVData,
+} from "../utils/validators";
+import { getEntityManager } from "../utils/entitiyManager";
 
 // Add a transaction
-export const addTransaction = async (req: Request, res: Response) => {
-	const { date, description, amount, currency } = req.body;
-
-	// Validating the input
-	if (!date || !description || !amount || !currency) {
-		res.status(400).json({
-			message:
-				"Missing required fields. Please provide date, description, amount, and currency.",
-		});
-
-		return;
-	}
-
-	// Checking validations and returning corresponding errors
-	const validationErrors = validateTransaction({
-		date,
-		description,
-		amount,
-		currency,
-	});
-
-	if (validationErrors.length > 0) {
-		res.status(400).json({
-			message: validationErrors.join(" "),
-		});
-		return;
-	}
-
-	// Converting date from dd-mm-yyyy to yyyy-mm--dd
-	const parseDate = (dateString: string): Date => {
-		const [day, month, year] = dateString.split("-");
-		return new Date(`${year}-${month}-${day}`);
-	};
-
-	const parsedDate = parseDate(date);
-	// console.log("date ", date, " parsed ", parseDate(date));
-
-	try {
-		const em = await getEntityManager();
-
-		// Find if a transaction with the same date and description already exists
-		const existingTransaction = await em.findOne(Transaction, {
-			date: parsedDate,
-			description,
-			deleted: false, // Ensure we're checking only non-deleted transactions
-		});
-
-		if (existingTransaction) {
-			res.status(400).json({
-				message:
-					"A transaction with the same date and description already exists.",
-			});
-			return;
-		}
-
-		// Create and populate a new transaction entry
-		const transaction = em.create(Transaction, {
-			date: parsedDate,
-			description,
-			amount: Number(amount * 100), // As we have a precision of two
-			currency,
-			deleted: false,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		});
-
-		// Save the transaction to the database
-		await em.persistAndFlush(transaction);
-
-		res.status(201).json({
-			message: "Transaction added successfully",
-			transaction,
-		});
-	} catch (error: unknown) {
-		console.error("Error adding transaction:", error);
-
-		res.status(500).json({
-			message: "An error occurred while adding the transaction.",
-			error: error,
-		});
-	}
-};
-
-export const addTransactionWithoutReqRes = async (
-	transactionData: TransactionInput
-) => {
+export const addTransaction = async (transactionData: TransactionInput) => {
 	const { date, description, amount, currency } = transactionData;
 
 	// Validating the input
@@ -125,9 +39,9 @@ export const addTransactionWithoutReqRes = async (
 	}
 
 	// Converting date from dd-mm-yyyy to yyyy-mm-dd
-	const parseDate = (dateString: string): Date => {
+	const parseDate = (dateString: string): string => {
 		const [day, month, year] = dateString.split("-");
-		return new Date(`${year}-${month}-${day}`);
+		return `${year}-${month}-${day}`;
 	};
 
 	const parsedDate = parseDate(date);
@@ -195,9 +109,25 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 		console.log(page, limit);
 		console.log(pageNum, limitNum);
 
-		if (isNaN(pageNum) || pageNum < 1 || isNaN(limitNum) || limitNum < 1) {
+		if (isNaN(pageNum) || pageNum < 1) {
+			if (isNaN(limitNum) || limitNum < 1) {
+				// Combined response when both pageNum and limitNum are invalid
+				res.status(400).json({
+					message: "Invalid page and limit. Both must be positive numbers.",
+				});
+			} else {
+				// Response when only pageNum is invalid
+				res.status(400).json({
+					message: "Invalid page. It must be a positive number.",
+				});
+			}
+			return;
+		}
+
+		if (isNaN(limitNum) || limitNum < 1) {
+			// Response when only limitNum is invalid
 			res.status(400).json({
-				message: "Invalid page or limit. Both must be positive numbers.",
+				message: "Invalid limit. It must be a positive number.",
 			});
 			return;
 		}
@@ -210,6 +140,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 			.getResultList();
 
 		// console.log("transactions", transactions.length);
+
 		// Fetch total count of transactions
 		const totalCount = await em.count(Transaction);
 
@@ -231,9 +162,9 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 			transactions,
 		});
 	} catch (error: unknown) {
-		console.error("Error fetching all transactions:", error);
+		console.error("Error fetching transactions", error);
 		res.status(500).json({
-			message: "Error fetching all transactions",
+			message: "Error fetching transactions",
 			error: error,
 		});
 	}
@@ -378,20 +309,47 @@ export const hardDeleteAllTransactions = async (
 	}
 };
 
-// Parsing CSV file and processing the transaction
-export const processCSVTransactions = async (req: Request, res: Response) => {
+export const processTransactions = async (req: Request, res: Response) => {
 	try {
 		const routePath = req.originalUrl;
 		console.log(`Request received from route: ${routePath}`);
 
 		// Handle direct transaction addition for /api/addtransaction
-		if (routePath === "/api/addTransaction") {
+		if (routePath == "/api/addTransaction") {
 			// Validate if a single transaction payload is provided
 			const { date, description, amount, currency } = req.body;
 
-			if (!date || !description || !amount || !currency) {
+			if (!date && !description && !amount && !currency) {
 				res.status(400).json({
-					message: "Invalid transaction data. All fields are required.",
+					message:
+						"Missing required fields: date, description, amount, currency. Please provide the missing fields.",
+				});
+				return;
+			}
+
+			const missingFields: string[] = [];
+
+			if (!date) {
+				missingFields.push("date");
+			}
+
+			if (!description) {
+				missingFields.push("description");
+			}
+
+			if (!amount) {
+				missingFields.push("amount");
+			}
+
+			if (!currency) {
+				missingFields.push("currency");
+			}
+
+			if (missingFields.length > 0) {
+				res.status(400).json({
+					message: `Missing required fields: ${missingFields.join(
+						", "
+					)}. Please provide the missing fields.`,
 				});
 				return;
 			}
@@ -405,7 +363,7 @@ export const processCSVTransactions = async (req: Request, res: Response) => {
 			};
 
 			// Add the transaction
-			const result = await addTransactionWithoutReqRes(transactionData);
+			const result = await addTransaction(transactionData);
 			console.log("Result of direct transaction addition:", result);
 
 			if (result.status !== 201) {
@@ -419,86 +377,8 @@ export const processCSVTransactions = async (req: Request, res: Response) => {
 			});
 			return;
 		}
-
-		// Handle CSV upload for other routes
-		if (req.file == null) {
-			console.log("req.file", req.file);
-			res.status(400).json({ message: "No file uploaded" });
-			return;
-		}
-
-		console.log("req.file", req.file);
-
-		// Parse the CSV data into JSON format
-		const parsedData = await parseCSV(req.file.buffer);
-		let totalTransaction = parsedData.length;
-		let successCount = 0;
-
-		const errorMessages: {
-			transaction: TransactionInput;
-			error: string;
-			Error?: Error;
-		}[] = [];
-
-		// Iterate over each transaction in the parsed CSV
-		for (const record of parsedData) {
-			const { Date, Description, Amount, Currency } = record;
-
-			// Prepare transaction data
-			const transactionData = {
-				date: Date.toString(),
-				description: Description,
-				amount: Number(Amount) * 100,
-				currency: Currency,
-			};
-
-			// Call `addTransaction` and handle its result
-			const result = await addTransactionWithoutReqRes(transactionData);
-			console.log("result", result);
-
-			if (result.status !== 201) {
-				errorMessages.push({
-					transaction: record,
-					error: result.message,
-				});
-			} else {
-				successCount++;
-			}
-		}
-
-		// Send a single response after processing all records
-		if (errorMessages.length > 0) {
-			res.status(400).json({
-				successCount,
-				message: `${
-					totalTransaction - successCount
-				} of ${totalTransaction} transactions failed to add.`,
-				errors: errorMessages,
-			});
-		} else {
-			res.status(201).json({
-				successCount,
-				message: "CSV data added to the database successfully.",
-			});
-		}
-	} catch (error: unknown) {
-		console.error("Error while uploading and processing CSV:", error);
-
-		res.status(500).json({
-			message: "An error occurred while processing the CSV file.",
-			error: (error as Error).message || "Unknown error",
-		});
-
-		return;
-	}
-};
-
-// Bulk adding without validation and checking for duplicates
-export const bulkAdd = async (req: Request, res: Response) => {
-	try {
 		// Handle CSV upload
 		if (req.file == null) {
-			console.log("req.file", req.file);
 			res.status(400).json({ message: "No file uploaded" });
 			return;
 		}
@@ -507,38 +387,40 @@ export const bulkAdd = async (req: Request, res: Response) => {
 
 		// Parse the CSV data into JSON format
 		const parsedData = await parseCSV(req.file.buffer);
-
 		console.log("parsedData", parsedData);
 
+		// Validate the parsed data
+		const validationErrors = validateCSVData(parsedData);
+		console.log("validationErrors", validationErrors);
+
+		// If validation errors exist, return the errors
+		if (validationErrors.errors.length > 0) {
+			res.status(400).json({
+				message: "Validation failed for some records.",
+				errors: validationErrors.errors,
+			});
+			return;
+		}
+
 		// Prepare an array to store valid transaction data
-		const transactionArray = [];
+		const transactionArray: TransactionInput[] = [];
 
 		// Get the entity manager
 		const entityManager = await getEntityManager();
 
-		// Iterate over each record in the parsed data
-		for (const record of parsedData) {
-			// Rename properties to follow camelCase
-			const {
-				Date: dateStr,
-				Description: description,
-				Amount: amount,
-				Currency: currency,
-			} = record;
+		// Process valid records for insertion
+		parsedData.forEach((record) => {
+			const { date, description, amount, currency } = record;
 
-			// Validate each field before processing
-			if (!dateStr || !description || !amount || !currency) {
-				console.log("Invalid record found:", record);
-				continue; // Skip invalid records
-			}
+			console.log("record", record);
 
 			// Convert date from dd-mm-yyyy to yyyy-mm-dd
-			const parseDate = (dateString: string): Date => {
+			const parseDate = (dateString: string): string => {
 				const [day, month, year] = dateString.split("-");
-				return new Date(`${year}-${month}-${day}`);
+				return `${year}-${month}-${day}`;
 			};
 
-			const parsedDate = parseDate(dateStr);
+			const parsedDate = parseDate(date);
 
 			// Prepare the transaction data for insertion
 			const transaction = entityManager.create(Transaction, {
@@ -551,25 +433,18 @@ export const bulkAdd = async (req: Request, res: Response) => {
 				updatedAt: new Date(),
 			});
 
-			// Add valid data to the array
 			transactionArray.push(transaction);
-		}
+		});
 
-		// Check if there are valid records to insert
-		if (transactionArray.length === 0) {
-			res.status(400).json({ message: "No valid transactions to add." });
-			return;
-		}
-
-		// Bulk insert the transactions using persistAndFlush
+		// Bulk insert the transactions
 		await entityManager.persistAndFlush(transactionArray);
 
 		// Send response with the count of successful transactions
 		res.status(201).json({
 			message: `${transactionArray.length} transactions added successfully.`,
 			successCount: transactionArray.length,
+			data: transactionArray,
 		});
-		return;
 	} catch (error: unknown) {
 		console.error("Error while uploading and processing CSV:", error);
 
@@ -578,6 +453,5 @@ export const bulkAdd = async (req: Request, res: Response) => {
 			message: "An error occurred while processing the CSV file.",
 			error: (error as Error).message || "Unknown error",
 		});
-		return;
 	}
 };

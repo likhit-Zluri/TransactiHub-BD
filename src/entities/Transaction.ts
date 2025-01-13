@@ -1,13 +1,14 @@
-import { Entity, PrimaryKey, Property } from "@mikro-orm/core";
+import { Entity, PrimaryKey, Property, Unique } from "@mikro-orm/core";
 import { v4 as uuidv4 } from "uuid";
 
 @Entity()
+@Unique({ properties: ["date", "description"] })
 export class Transaction {
 	@PrimaryKey({ type: "uuid" })
 	id: string = uuidv4();
 
 	@Property()
-	date!: Date;
+	date!: string;
 
 	@Property()
 	description!: string;

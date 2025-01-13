@@ -30,6 +30,8 @@ const config: Config = {
 	// Match test files with `.test.ts` or `.spec.ts` extensions
 	testMatch: ["**/*.test.ts"],
 
+	setupFilesAfterEnv: ["<rootDir>/src/tests/setupTests.ts"], // Make sure the setup file is loade
+
 	// All imported modules in your tests should be mocked automatically
 	// automock: false,
 
