@@ -18,6 +18,7 @@
         "date": {
           "name": "date",
           "type": "timestamptz",
+
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
