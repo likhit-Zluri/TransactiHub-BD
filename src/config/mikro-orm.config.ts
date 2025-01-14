@@ -10,7 +10,10 @@ config();
 const mikroOrmDefaultConfig: Options = {
 	driver: PostgreSqlDriver, // Use PostgreSQL driver
 	entities: [Transaction], // MikroORM entities
-	dbName: process.env.DB_NAME, // Database name
+	dbName:
+		process.env.NODE_ENV === "test"
+			? process.env.TEST_DB_NAME
+			: process.env.DB_NAME, // Database name
 	user: process.env.DB_USER, // Database user
 	password: process.env.DB_PASSWORD, // Database password
 	host: process.env.DB_HOST, // Database host
@@ -18,36 +21,21 @@ const mikroOrmDefaultConfig: Options = {
 	debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
 };
 
-// Override config for tests
-const testDbConfig: Options = {
-	...mikroOrmDefaultConfig,
-	dbName: process.env.TEST_DB_NAME, // Test database name
-	user: process.env.TEST_DB_USER, // Test database user
-	password: process.env.TEST_DB_PASSWORD, // Test database password
-	host: process.env.TEST_DB_HOST, // Test database host
-	port: Number(process.env.TEST_DB_PORT), // Test database port
-};
-
 // Function to initialize MikroORM
 export async function initializeORM(customConfig?: Options) {
 	try {
+		// console.log("customConfig", customConfig);
 		// Use test database config if in test environment
-		const finalConfig =
-			process.env.NODE_ENV === "test"
-				? { ...mikroOrmDefaultConfig, ...testDbConfig, ...customConfig }
-				: { ...mikroOrmDefaultConfig, ...customConfig };
+		const finalConfig = { ...mikroOrmDefaultConfig, ...customConfig };
+		console.log("DB name", finalConfig.dbName);
 
 		// Initialize MikroORM with the final config
 		const orm = await MikroORM.init(finalConfig);
-		return orm;
+		const em = orm.em.fork();
+
+		return { orm, em };
 	} catch (error: unknown) {
-		// Handle error
-		if (error instanceof Error) {
-			console.error("Error initializing MikroORM:", error.message);
-			throw new Error(`Error initializing MikroORM: ${error.message}`);
-		} else {
-			console.error("Unknown error during MikroORM initialization.");
-			throw new Error("Error initializing MikroORM: Unknown error.");
-		}
+		console.log("Unknown error during MikroORM initialization.", error);
+		throw new Error(`Error initializing MikroORM: ${error}`);
 	}
 }

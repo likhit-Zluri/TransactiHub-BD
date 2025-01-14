@@ -31,7 +31,7 @@ export const handleUpload = (
 ) => {
 	upload.single("file")(req, res, (err: any) => {
 		if (err) {
-			// console.log("error in multertConfig", err.code);
+			console.log("error in multertConfig", err);
 
 			// Handle file size error
 			if (err.code === "LIMIT_FILE_SIZE") {

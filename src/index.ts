@@ -47,7 +47,8 @@ app.use((req, res) => {
 
 // Start the server
 const server = app.listen(port, () => {
-	console.log(`The server is running at port ${port}`);
+	const dynamicPort = (server.address() as any).port;
+	console.log(`The server is running at port ${dynamicPort}`);
 });
 
 export { app, server };

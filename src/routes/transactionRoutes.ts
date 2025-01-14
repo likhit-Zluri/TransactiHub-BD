@@ -2,7 +2,6 @@ import express from "express";
 import {
 	getAllTransactions,
 	softDeleteTransaction,
-	hardDeleteTransaction,
 	hardDeleteAllTransactions,
 	softDeleteAllTransactions,
 	processTransactions,
@@ -23,8 +22,6 @@ router.post("/addTransaction", processTransactions);
 router.get("/getAllTransactions", getAllTransactions);
 
 router.delete("/softDeleteTransaction", softDeleteTransaction);
-
-router.delete("/hardDeleteTransaction", hardDeleteTransaction);
 
 // Uploading CSV
 router.post("/processCSV", handleUpload, processTransactions);

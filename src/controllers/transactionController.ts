@@ -9,17 +9,45 @@ import {
 	validateCSVData,
 } from "../utils/validators";
 import { getEntityManager } from "../utils/entitiyManager";
+import { initializeORM } from "../config/mikro-orm.config";
 
 // Add a transaction
-export const addTransaction = async (transactionData: TransactionInput) => {
+export const addTransaction = async (transactionData: any) => {
 	const { date, description, amount, currency } = transactionData;
+	console.log("date", date, amount, typeof amount);
 
-	// Validating the input
-	if (!date || !description || !amount || !currency) {
+	if (!date && !description && !amount && !currency) {
 		return {
 			status: 400,
 			message:
-				"Missing required fields. Please provide date, description, amount, and currency.",
+				"Missing required fields: date, description, amount, currency. Please provide the missing fields.",
+		};
+	}
+
+	const missingFields: string[] = [];
+
+	if (!date) {
+		missingFields.push("date");
+	}
+
+	if (!description) {
+		missingFields.push("description");
+	}
+
+	if (!amount) {
+		missingFields.push("amount");
+	}
+
+	if (!currency) {
+		missingFields.push("currency");
+	}
+
+	if (missingFields.length > 0) {
+		return {
+			status: 400,
+			message: `Missing required fields: ${missingFields.join(
+				", "
+			)}. Please provide the missing fields.`,
 		};
 	}
 
@@ -38,20 +66,20 @@ export const addTransaction = async (transactionData: TransactionInput) => {
 		};
 	}
 
-	// Converting date from dd-mm-yyyy to yyyy-mm-dd
-	const parseDate = (dateString: string): string => {
-		const [day, month, year] = dateString.split("-");
-		return `${year}-${month}-${day}`;
-	};
+	// // Converting date from dd-mm-yyyy to yyyy-mm-dd
+	// const parseDate = (dateString: string): string => {
+	// 	const [day, month, year] = dateString.split("-");
+	// 	return `${year}-${month}-${day}`;
+	// };
 
-	const parsedDate = parseDate(date);
+	// const parsedDate = parseDate(date);
 
 	try {
-		const em = await getEntityManager();
+		const { orm, em } = await initializeORM();
 
 		// Find if a transaction with the same date and description already exists
 		const existingTransaction = await em.findOne(Transaction, {
-			date: parsedDate,
+			date: date,
 			description,
 			deleted: false, // Ensure we're checking only non-deleted transactions
 		});
@@ -66,9 +94,9 @@ export const addTransaction = async (transactionData: TransactionInput) => {
 
 		// Create and populate a new transaction entry
 		const transaction = em.create(Transaction, {
-			date: parsedDate,
+			date: date,
 			description,
-			amount: Number(amount * 100), // As we have a precision of two
+			amount: amount * 100, // As we have a precision of two
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -77,6 +105,8 @@ export const addTransaction = async (transactionData: TransactionInput) => {
 
 		// Save the transaction to the database
 		await em.persistAndFlush(transaction);
+
+		await orm.close(true);
 
 		return {
 			status: 201,
@@ -195,46 +225,13 @@ export const softDeleteTransaction = async (req: Request, res: Response) => {
 			message: "Transaction soft deleted successfully",
 			transaction,
 		});
+		return;
 	} catch (error: unknown) {
 		console.error("Error soft deleting transaction:", error);
 
 		res.status(500).json({
 			message: "Error soft deleting transaction",
 			error: error,
-		});
-	}
-};
-
-// Hard delete a transaction
-export const hardDeleteTransaction = async (req: Request, res: Response) => {
-	try {
-		const em = await getEntityManager();
-
-		const { id } = req.body;
-
-		const transaction = await em.findOne(Transaction, { id });
-
-		if (!transaction) {
-			res.status(404).json({
-				message: "Transaction not found",
-			});
-
-			return;
-		}
-
-		// Remove the transaction permanently
-		await em.removeAndFlush(transaction);
-
-		res.status(200).json({
-			message: "Transaction deleted successfully",
-			transaction,
-		});
-	} catch (error: unknown) {
-		console.error("Error deleting transaction:", error);
-
-		res.status(500).json({
-			message: "Error deleting transaction",
-			error: (error as Error).message,
 		});
 	}
 };
@@ -315,50 +312,15 @@ export const processTransactions = async (req: Request, res: Response) => {
 		console.log(`Request received from route: ${routePath}`);
 
 		// Handle direct transaction addition for /api/addtransaction
-		if (routePath == "/api/addTransaction") {
+		if (routePath === "/api/addTransaction") {
 			// Validate if a single transaction payload is provided
 			const { date, description, amount, currency } = req.body;
-
-			if (!date && !description && !amount && !currency) {
-				res.status(400).json({
-					message:
-						"Missing required fields: date, description, amount, currency. Please provide the missing fields.",
-				});
-				return;
-			}
-
-			const missingFields: string[] = [];
-
-			if (!date) {
-				missingFields.push("date");
-			}
-
-			if (!description) {
-				missingFields.push("description");
-			}
-
-			if (!amount) {
-				missingFields.push("amount");
-			}
-
-			if (!currency) {
-				missingFields.push("currency");
-			}
-
-			if (missingFields.length > 0) {
-				res.status(400).json({
-					message: `Missing required fields: ${missingFields.join(
-						", "
-					)}. Please provide the missing fields.`,
-				});
-				return;
-			}
 
 			// Prepare transaction data
 			const transactionData = {
 				date: date.toString(), // Ensure proper date conversion
 				description: description,
-				amount: Number(amount) * 100, // Convert to cents if needed
+				amount: amount, // Convert to cents if needed
 				currency: currency,
 			};
 
@@ -377,6 +339,17 @@ export const processTransactions = async (req: Request, res: Response) => {
 			});
 			return;
 		}
+		console.log("out");
+
+		const skipCSVDuplicates = req.body?.skipCSVDuplicates || "false";
+
+		console.log(
+			"skipCSVDuplicates",
+			skipCSVDuplicates,
+			typeof skipCSVDuplicates,
+			req.headers
+		);
+
 		// Handle CSV upload
 		if (req.file == null) {
 			res.status(400).json({ message: "No file uploaded" });
@@ -390,14 +363,24 @@ export const processTransactions = async (req: Request, res: Response) => {
 		console.log("parsedData", parsedData);
 
 		// Validate the parsed data
-		const validationErrors = validateCSVData(parsedData);
-		console.log("validationErrors", validationErrors);
+		const { validationErrors, duplicationErrors, duplicates } =
+			validateCSVData(parsedData);
+		// console.log(
+		// 	"result from validateCSVData",
+		// 	validationErrors,
+		// 	duplicationErrors,
+		// 	duplicates
+		// );
 
 		// If validation errors exist, return the errors
-		if (validationErrors.errors.length > 0) {
+		if (
+			validationErrors.length > 0 ||
+			(duplicationErrors.length > 0 && skipCSVDuplicates === "false")
+		) {
 			res.status(400).json({
-				message: "Validation failed for some records.",
-				errors: validationErrors.errors,
+				message: `Validation failed for some records.`,
+				validationErrors: validationErrors,
+				duplicationErrors: duplicationErrors,
 			});
 			return;
 		}
@@ -407,26 +390,30 @@ export const processTransactions = async (req: Request, res: Response) => {
 
 		// Get the entity manager
 		const entityManager = await getEntityManager();
-
+		let index = 0;
 		// Process valid records for insertion
-		parsedData.forEach((record) => {
+		parsedData.forEach((record, index) => {
+			if (duplicates.includes(index)) {
+				return;
+			}
+
 			const { date, description, amount, currency } = record;
 
 			console.log("record", record);
 
-			// Convert date from dd-mm-yyyy to yyyy-mm-dd
-			const parseDate = (dateString: string): string => {
-				const [day, month, year] = dateString.split("-");
-				return `${year}-${month}-${day}`;
-			};
+			// // Convert date from dd-mm-yyyy to yyyy-mm-dd
+			// const parseDate = (dateString: string): string => {
+			// 	const [day, month, year] = dateString.split("-");
+			// 	return `${year}-${month}-${day}`;
+			// };
 
-			const parsedDate = parseDate(date);
+			// const parsedDate = parseDate(date);
 
 			// Prepare the transaction data for insertion
 			const transaction = entityManager.create(Transaction, {
-				date: parsedDate,
+				date: date,
 				description,
-				amount: Number(amount) * 100, // Convert to cents if needed
+				amount: amount * 100, // Convert to cents if needed
 				currency,
 				deleted: false, // Default flag for new transactions
 				createdAt: new Date(),

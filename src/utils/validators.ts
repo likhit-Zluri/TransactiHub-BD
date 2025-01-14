@@ -7,86 +7,109 @@ export interface TransactionInput {
 
 // Validate a single transaction record
 export const validateTransaction = (record: any): string[] => {
-	const errors: string[] = [];
+	const validationErrors: string[] = [];
 	const { date, description, amount, currency } = record;
+	// console.log("date", date, amount, typeof amount);
 
-	// Check if the required fields are present
-	if (!date) errors.push("Missing 'Date' field.");
-	if (!description) errors.push("Missing 'Description' field.");
-	if (!amount) errors.push("Missing 'Amount' field.");
-	if (!currency) errors.push("Missing 'Currency' field.");
+	// // Check if the required fields are present
+	// if (!date) errors.push("Missing 'Date' field.");
+	// if (!description) errors.push("Missing 'Description' field.");
+	// if (!amount) errors.push("Missing 'Amount' field.");
+	// if (!currency) errors.push("Missing 'Currency' field.");
 
 	// Validate the date format (dd-mm-yyyy)
-	if (date && !/^\d{2}-\d{2}-\d{4}$/.test(date)) {
-		errors.push(`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`);
+	if (date && typeof date !== "string") {
+		validationErrors.push(
+			`Invalid 'Date' type: ${typeof date}. Expected type: string.`
+		);
+	} else if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+		validationErrors.push(
+			`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
+		);
 	}
 
 	// Validate that the amount is a positive number
-	if (amount && (isNaN(Number(amount)) || Number(amount) <= 0)) {
-		errors.push(`Invalid 'Amount': ${amount}. Must be a positive number.`);
+	if (amount && typeof amount !== "number") {
+		validationErrors.push(
+			`Invalid 'Amount' type: ${typeof amount}. Expected format: number.`
+		);
+	} else if (isNaN(Number(amount)) || Number(amount) <= 0) {
+		validationErrors.push(
+			`Invalid 'Amount': ${amount}. Must be a positive number.`
+		);
+	}
+
+	// Validate that the description is a string
+	if (description && typeof description !== "string") {
+		validationErrors.push(
+			`Invalid 'Description' type: ${typeof description}. Expected type: string.`
+		);
 	}
 
 	// Validate the currency (assume it's a 3-letter ISO code)
 	if (currency && !/^[A-Z]{3}$/.test(currency)) {
-		errors.push(
-			`Invalid 'Currency': ${currency}. Must be a 3-letter ISO code.`
+		validationErrors.push(
+			`Invalid 'Currency': ${currency}. Expected format: 3-letter ISO code.`
 		);
 	}
 
-	return errors;
+	console.log("validationErrors in validateTransaction", validationErrors);
+	return validationErrors;
 };
 
 // Function to check for duplicates in CSV data
-export const checkForDuplicatesInCSV = (
-	parsedData: TransactionInput[]
-): string[] => {
-	const errors: string[] = [];
-	const seenTransactions: Map<string, number[]> = new Map();
+export const checkForDuplicatesInCSV = (parsedData: TransactionInput[]) => {
+	const DuplicationErrors: string[] = [];
+	const seenTransactions: Map<string, number> = new Map();
+	const duplicates: Number[] = [];
 
 	parsedData.forEach((record, index) => {
 		const transactionKey = `${record.description}-${record.date}`;
 
-		if (seenTransactions.has(transactionKey)) {
-			// If duplicate found, append the current index to the existing list of indexes
-			const existingIndexes = seenTransactions.get(transactionKey);
-			existingIndexes?.push(index + 1); // Store the 1-based index of the duplicate
-			errors.push(
-				`Duplicate found at indexes ${existingIndexes?.join(
-					", "
-				)}: ${transactionKey}`
+		const firstIndex = seenTransactions.get(transactionKey);
+
+		if (firstIndex !== undefined) {
+			// Handle the possibility of `undefined`
+			duplicates.push(index); // Add current index to duplicates
+			DuplicationErrors.push(
+				`Record at ${index + 1} is a duplicate of record at ${firstIndex + 1}`
 			);
 		} else {
-			seenTransactions.set(transactionKey, [index + 1]); // Store the 1-based index of the first occurrence
+			seenTransactions.set(transactionKey, index); // Add new transaction to the Map
 		}
 	});
 
-	console.log("errors in checkForDuplicatesInCSV", errors);
-	return errors;
+	console.log(
+		"errors, duplicates in checkForDuplicatesInCSV",
+		DuplicationErrors,
+		duplicates
+	);
+	return { DuplicationErrors, duplicates };
 };
 
 // Main CSV validation function that returns an array of errors
 export const validateCSVData = (parsedData: TransactionInput[]) => {
-	const errors: string[] = [];
+	const validationErrors: string[] = [];
+	const duplicationErrors: string[] = [];
 
 	// Validate each transaction record
 	parsedData.forEach((record, index) => {
-		const validationErrors = validateTransaction(record);
+		const validationError = validateTransaction(record);
 
-		if (validationErrors.length > 0) {
-			errors.push(
+		if (validationError.length > 0) {
+			validationErrors.push(
 				`Record at index ${
 					index + 1
-				} has the following errors: ${validationErrors.join(", ")}`
+				} has the following errors: ${validationError.join(", ")}`
 			);
 		}
 	});
 
 	// Check for duplicates in CSV data
-	const csvDuplicates = checkForDuplicatesInCSV(parsedData);
-	if (csvDuplicates.length > 0) {
-		errors.push(...csvDuplicates);
+	const { DuplicationErrors, duplicates } = checkForDuplicatesInCSV(parsedData);
+	if (DuplicationErrors.length > 0) {
+		duplicationErrors.push(...DuplicationErrors);
 	}
 
-	console.log("errors in validateCSVData", errors);
-	return { errors };
+	return { validationErrors, duplicationErrors, duplicates };
 };

@@ -19,7 +19,9 @@ export const parseCSV = (buffer: Buffer): Promise<any[]> => {
 					const cleanedData = Object.fromEntries(
 						Object.entries(data).map(([key, value]) => [
 							key.replace(/^﻿/, "").toLowerCase(), // Remove BOM character and convert to lowercase
-							value,
+							key.toLowerCase() === "amount" ? Number(value) : value,
+
+							console.log(key, value),
 						])
 					);
 					results.push(cleanedData);
@@ -28,7 +30,9 @@ export const parseCSV = (buffer: Buffer): Promise<any[]> => {
 					const cleanedData = Object.fromEntries(
 						Object.entries(data).map(([key, value]) => [
 							key.toLowerCase(), // Convert key to lowercase
-							value,
+							key.toLowerCase() === "amount" ? Number(value) : value,
+
+							console.log(key, value),
 						])
 					);
 					results.push(cleanedData);
