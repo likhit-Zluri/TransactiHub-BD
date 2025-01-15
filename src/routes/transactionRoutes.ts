@@ -5,6 +5,7 @@ import {
 	hardDeleteAllTransactions,
 	softDeleteAllTransactions,
 	processTransactions,
+	editTransaction,
 } from "../controllers/transactionController";
 
 // import multer from "multer";
@@ -17,6 +18,8 @@ const router = express.Router();
 // Add a single transaction
 // router.post("/addTransaction", addTransaction);
 router.post("/addTransaction", processTransactions);
+
+router.post("/editTransaction",editTransaction);
 
 // Get all transaction
 router.get("/getAllTransactions", getAllTransactions);

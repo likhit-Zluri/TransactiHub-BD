@@ -1,4 +1,4 @@
-import { Application, Request, response, Response } from "express";
+import { Request, Response } from "express";
 
 import { Transaction } from "../entities/Transaction";
 import { parseCSV } from "../services/csvParserService";
@@ -8,13 +8,13 @@ import {
 	validateTransaction,
 	validateCSVData,
 } from "../utils/validators";
-import { getEntityManager } from "../utils/entitiyManager";
-import { initializeORM } from "../config/mikro-orm.config";
+
+import { getForkedEntityManager } from "../utils/entityManager";
 
 // Add a transaction
 export const addTransaction = async (transactionData: any) => {
 	const { date, description, amount, currency } = transactionData;
-	console.log("date", date, amount, typeof amount);
+	console.log("date", date, description, amount, currency);
 
 	if (!date && !description && !amount && !currency) {
 		return {
@@ -75,7 +75,7 @@ export const addTransaction = async (transactionData: any) => {
 	// const parsedDate = parseDate(date);
 
 	try {
-		const { orm, em } = await initializeORM();
+		const em = await getForkedEntityManager();
 
 		// Find if a transaction with the same date and description already exists
 		const existingTransaction = await em.findOne(Transaction, {
@@ -106,8 +106,6 @@ export const addTransaction = async (transactionData: any) => {
 		// Save the transaction to the database
 		await em.persistAndFlush(transaction);
 
-		await orm.close(true);
-
 		return {
 			status: 201,
 			message: "Transaction added successfully",
@@ -130,7 +128,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 	const { page = 1, limit = 10 } = req.query;
 
 	try {
-		const em = await getEntityManager();
+		const em = await getForkedEntityManager();
 
 		// Validate page and limit inputs
 		const pageNum = Number(page);
@@ -162,12 +160,15 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 			return;
 		}
 
-		const transactions = await em
-			.createQueryBuilder(Transaction)
-			.orderBy({ date: "DESC" })
-			.limit(Number(limitNum))
-			.offset((Number(pageNum) - 1) * Number(limitNum))
-			.getResultList();
+		const transactions = await em.find(
+			Transaction,
+			{},
+			{
+				orderBy: { date: "DESC" },
+				limit: Number(limitNum),
+				offset: (Number(pageNum) - 1) * Number(limitNum),
+			}
+		);
 
 		// console.log("transactions", transactions.length);
 
@@ -203,7 +204,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 // Soft delete a transaction
 export const softDeleteTransaction = async (req: Request, res: Response) => {
 	try {
-		const em = await getEntityManager();
+		const em = await getForkedEntityManager();
 
 		const { id } = req.body;
 		// const { id } = req.params;
@@ -241,7 +242,7 @@ export const softDeleteAllTransactions = async (
 	res: Response
 ) => {
 	try {
-		const em = await getEntityManager();
+		const em = await getForkedEntityManager();
 
 		// Fetch all active transactions (not deleted)
 		const transactions = await em.find(Transaction, { deleted: false });
@@ -281,7 +282,7 @@ export const hardDeleteAllTransactions = async (
 	res: Response
 ) => {
 	try {
-		const em = await getEntityManager();
+		const em = await getForkedEntityManager();
 
 		// Fetch all transactions (no "deleted" filter here for hard delete)
 		const transactions = await em.find(Transaction, {});
@@ -388,9 +389,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 		// Prepare an array to store valid transaction data
 		const transactionArray: TransactionInput[] = [];
 
-		// Get the entity manager
-		const entityManager = await getEntityManager();
-		let index = 0;
+		const em = await getForkedEntityManager();
+
 		// Process valid records for insertion
 		parsedData.forEach((record, index) => {
 			if (duplicates.includes(index)) {
@@ -410,7 +410,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 			// const parsedDate = parseDate(date);
 
 			// Prepare the transaction data for insertion
-			const transaction = entityManager.create(Transaction, {
+			const transaction = em.create(Transaction, {
 				date: date,
 				description,
 				amount: amount * 100, // Convert to cents if needed
@@ -424,7 +424,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		});
 
 		// Bulk insert the transactions
-		await entityManager.persistAndFlush(transactionArray);
+		await em.persistAndFlush(transactionArray);
 
 		// Send response with the count of successful transactions
 		res.status(201).json({
@@ -440,5 +440,67 @@ export const processTransactions = async (req: Request, res: Response) => {
 			message: "An error occurred while processing the CSV file.",
 			error: (error as Error).message || "Unknown error",
 		});
+	}
+};
+
+// edit a transaction
+export const editTransaction = async (req: Request, res: Response) => {
+	// const { id } = req.params; // Transaction ID from the request URL
+	const { id, date, description, amount, currency } = req.body; // New data
+	console.log("body", id, date, description, amount, currency);
+
+	try {
+		const em = await getForkedEntityManager();
+
+		// Find the transaction by ID
+		const transaction = await em.findOne(Transaction, { id, deleted: false });
+
+		if (!transaction) {
+			res.status(404).json({
+				message: `Transaction with ID ${id} not found.`,
+			});
+			return;
+		}
+
+		// Validate new data
+		const validationErrors = validateTransaction({
+			date,
+			description,
+			amount,
+			currency,
+		});
+
+		if (validationErrors.length > 0) {
+			res.status(400).json({
+				message: validationErrors.join(" "),
+			});
+			return;
+		}
+
+		// Update transaction fields only if they are provided
+		if (date) {
+			transaction.date = date;
+		}
+		if (description) transaction.description = description;
+		if (amount) transaction.amount = amount * 100; // Update with precision
+		if (currency) transaction.currency = currency;
+
+		transaction.updatedAt = new Date(); // Update timestamp
+
+		// Persist changes
+		await em.persistAndFlush(transaction);
+
+		res.status(200).json({
+			message: "Transaction updated successfully.",
+			transaction,
+		});
+		return;
+	} catch (error) {
+		console.error("Error editing transaction:", error);
+		res.status(500).json({
+			message: "An error occurred while editing the transaction.",
+			error,
+		});
+		return;
 	}
 };

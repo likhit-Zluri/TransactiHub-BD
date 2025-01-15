@@ -8,7 +8,7 @@ export interface TransactionInput {
 // Validate a single transaction record
 export const validateTransaction = (record: any): string[] => {
 	const validationErrors: string[] = [];
-	const { date, description, amount, currency } = record;
+	const { id, date, description, amount, currency } = record;
 	// console.log("date", date, amount, typeof amount);
 
 	// // Check if the required fields are present
@@ -17,42 +17,63 @@ export const validateTransaction = (record: any): string[] => {
 	// if (!amount) errors.push("Missing 'Amount' field.");
 	// if (!currency) errors.push("Missing 'Currency' field.");
 
+	// Validate the id format (uuid)
+	if (id !== undefined) {
+		if (
+			typeof id !== "string" ||
+			!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+				id
+			)
+		) {
+			validationErrors.push(
+				`Invalid 'id' type: ${typeof id}. Expected type: uuid.`
+			);
+		}
+	}
+
 	// Validate the date format (dd-mm-yyyy)
-	if (date && typeof date !== "string") {
-		validationErrors.push(
-			`Invalid 'Date' type: ${typeof date}. Expected type: string.`
-		);
-	} else if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
-		validationErrors.push(
-			`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
-		);
+	if (date !== undefined) {
+		if (date && typeof date !== "string") {
+			validationErrors.push(
+				`Invalid 'Date' type: ${typeof date}. Expected type: string.`
+			);
+		} else if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+			validationErrors.push(
+				`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
+			);
+		}
 	}
 
 	// Validate that the amount is a positive number
-	if (amount && typeof amount !== "number") {
-		validationErrors.push(
-			`Invalid 'Amount' type: ${typeof amount}. Expected format: number.`
-		);
-	} else if (isNaN(Number(amount)) || Number(amount) <= 0) {
-		validationErrors.push(
-			`Invalid 'Amount': ${amount}. Must be a positive number.`
-		);
+	if (amount !== undefined) {
+		if (amount && typeof amount !== "number") {
+			validationErrors.push(
+				`Invalid 'Amount' type: ${typeof amount}. Expected format: number.`
+			);
+		} else if (isNaN(Number(amount)) || Number(amount) <= 0) {
+			validationErrors.push(
+				`Invalid 'Amount': ${amount}. Must be a positive number.`
+			);
+		}
 	}
 
 	// Validate that the description is a string
-	if (description && typeof description !== "string") {
-		validationErrors.push(
-			`Invalid 'Description' type: ${typeof description}. Expected type: string.`
-		);
+	if (description !== undefined) {
+		if (description && typeof description !== "string") {
+			validationErrors.push(
+				`Invalid 'Description' type: ${typeof description}. Expected type: string.`
+			);
+		}
 	}
 
 	// Validate the currency (assume it's a 3-letter ISO code)
-	if (currency && !/^[A-Z]{3}$/.test(currency)) {
-		validationErrors.push(
-			`Invalid 'Currency': ${currency}. Expected format: 3-letter ISO code.`
-		);
+	if (currency !== undefined) {
+		if (currency && !/^[A-Z]{3}$/.test(currency)) {
+			validationErrors.push(
+				`Invalid 'Currency': ${currency}. Expected format: 3-letter ISO code.`
+			);
+		}
 	}
-
 	console.log("validationErrors in validateTransaction", validationErrors);
 	return validationErrors;
 };

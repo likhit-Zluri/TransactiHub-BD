@@ -1,21 +1,20 @@
 import express, { Request, Response } from "express";
-import { initializeORM } from "./config/mikro-orm.config";
+// import { getORM, closeORM } from "./config/mikro-orm.config";
 import transactionRoutes from "./routes/transactionRoutes";
-import { addTransaction } from "../src/controllers/transactionController";
-import { Transaction } from "./entities/Transaction";
+// import { addTransaction } from "../src/controllers/transactionController";
+// import { Transaction } from "./entities/Transaction";
 
 // import pool from "./config/database"; // direct local DB
 
 // Instantiate express
 const app = express();
 
-// Default port value
-const port = process.env.PORT || 0; // 0 means it will use any available port
-
 // Middleware to parse JSON
 app.use(express.json());
 
-// initializeORM();
+// (async () => {
+// 	await getORM();
+// })();
 
 // Verify database connection
 // direct local DB
@@ -46,9 +45,40 @@ app.use((req, res) => {
 });
 
 // Start the server
-const server = app.listen(port, () => {
-	const dynamicPort = (server.address() as any).port;
-	console.log(`The server is running at port ${dynamicPort}`);
-});
+// const server = app.listen(port, async () => {
+// 	const dynamicPort = (server.address() as any).port;
+// 	console.log(`The server is running at port ${dynamicPort}`);
 
-export { app, server };
+// 	const orm = await getORM();
+// });
+
+// Graceful shutdown
+// export const shutdown = async () => {
+// 	try {
+// 		console.log("Shutting down server...");
+// 		// Close the server
+// 		server.close(async () => {
+// 			console.log("HTTP server closed.");
+// 			// Close MikroORM connection
+// 			await closeORM();
+// 			console.log("ORM connection closed.");
+// 		});
+// 	} catch (error) {
+// 		console.error("Error during shutdown:", error);
+// 		process.exit(1); // Exit with error
+// 	}
+// };
+
+// server.close(async () => {
+// 	console.log("HTTP server closed.");
+// 	// Close MikroORM connection
+// 	await closeORM();
+// 	console.log("ORM connection closed.");
+// 	// process.exit(0); // Exit cleanly
+// });
+
+// // Handle termination signals
+// process.on("SIGINT", shutdown); // Handle Ctrl+C
+// process.on("SIGTERM", shutdown); // Handle termination signals
+
+export { app };
