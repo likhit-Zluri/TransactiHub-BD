@@ -5,17 +5,48 @@ export interface TransactionInput {
 	currency: string;
 }
 
+export interface Record {
+	date: string;
+	description: string;
+	amount: string; // Amount as a string
+	currency: string;
+}
+
 // Validate a single transaction record
 export const validateTransaction = (record: any): string[] => {
 	const validationErrors: string[] = [];
 	const { id, date, description, amount, currency } = record;
 	// console.log("date", date, amount, typeof amount);
 
-	// // Check if the required fields are present
-	// if (!date) errors.push("Missing 'Date' field.");
-	// if (!description) errors.push("Missing 'Description' field.");
-	// if (!amount) errors.push("Missing 'Amount' field.");
-	// if (!currency) errors.push("Missing 'Currency' field.");
+	const missingFields: string[] = [];
+
+	if (!date) {
+		missingFields.push("date");
+	}
+
+	if (!description) {
+		missingFields.push("description");
+	}
+
+	if (!amount) {
+		missingFields.push("amount");
+	}
+
+	if (!currency) {
+		missingFields.push("currency");
+	}
+
+	if (missingFields.length > 0) {
+		validationErrors.push(
+			`Missing required fields: ${missingFields.join(
+				", "
+			)}. Please provide the missing fields.`
+		);
+	}
+
+	if (validationErrors.length > 0) {
+		return validationErrors;
+	}
 
 	// Validate the id format (uuid)
 	if (id !== undefined) {

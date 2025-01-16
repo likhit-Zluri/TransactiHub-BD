@@ -5,6 +5,7 @@ import { parseCSV } from "../services/csvParserService";
 
 import {
 	TransactionInput,
+	Record,
 	validateTransaction,
 	validateCSVData,
 } from "../utils/validators";
@@ -14,41 +15,6 @@ import { getForkedEntityManager } from "../utils/entityManager";
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
 	const { date, description, amount, currency } = req.body;
-
-	if (!date && !description && !amount && !currency) {
-		res.status(400).json({
-			message:
-				"Missing required fields: date, description, amount, currency. Please provide the missing fields.",
-		});
-		return;
-	}
-
-	const missingFields: string[] = [];
-
-	if (!date) {
-		missingFields.push("date");
-	}
-
-	if (!description) {
-		missingFields.push("description");
-	}
-
-	if (!amount) {
-		missingFields.push("amount");
-	}
-
-	if (!currency) {
-		missingFields.push("currency");
-	}
-
-	if (missingFields.length > 0) {
-		res.status(400).json({
-			message: `Missing required fields: ${missingFields.join(
-				", "
-			)}. Please provide the missing fields.`,
-		});
-		return;
-	}
 
 	// Checking validations and returning corresponding errors
 	const validationErrors = validateTransaction({
@@ -64,7 +30,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		});
 		return;
 	}
-	console.log("date", date, description, amount, currency);
+	// console.log("date", date, description, amount, currency);
 
 	// // Converting date from dd-mm-yyyy to yyyy-mm-dd
 	// const parseDate = (dateString: string): string => {
@@ -165,14 +131,14 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 		const [transactions, totalCount] = await Promise.all([
 			em.find(
 				Transaction,
-				{}, // dont get the deleted transaction
+				{ deleted: false }, // dont get the deleted transaction
 				{
 					orderBy: { date: "DESC" },
 					limit: Number(limitNum),
 					offset: (Number(pageNum) - 1) * Number(limitNum),
 				}
 			),
-			em.count(Transaction),
+			em.count(Transaction, { deleted: false }),
 		]);
 
 		// const transactions = await em.find(
@@ -224,7 +190,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		// const { id } = req.body;
 		const { id } = req.params;
 
-		const transaction = await em.findOne(Transaction, { id });
+		const transaction = await em.findOne(Transaction, { id, deleted: false });
 		// check for already deleted
 
 		if (!transaction) {
@@ -253,6 +219,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 	}
 };
 
+// Soft delete all transaction
 export const deleteAllTransactions = async (req: Request, res: Response) => {
 	try {
 		const em = await getForkedEntityManager();
@@ -289,6 +256,7 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 	}
 };
 
+// Add multiple transaction through csv file
 export const processTransactions = async (req: Request, res: Response) => {
 	try {
 		// const routePath = req.originalUrl;
@@ -317,18 +285,18 @@ export const processTransactions = async (req: Request, res: Response) => {
 		console.log("req.file", req.file);
 
 		// Parse the CSV data into JSON format
-		const parsedData = await parseCSV(req.file.buffer);
-		console.log("parsedData", parsedData);
+		const parsedData: TransactionInput[] = await parseCSV(req.file.buffer);
+		// console.log("parsedData", parsedData);
 
 		// Validate the parsed data
 		const { validationErrors, duplicationErrors, duplicates } =
 			validateCSVData(parsedData);
-		// console.log(
-		// 	"result from validateCSVData",
-		// 	validationErrors,
-		// 	duplicationErrors,
-		// 	duplicates
-		// );
+		console.log(
+			"result from validateCSVData",
+			validationErrors,
+			duplicationErrors,
+			duplicates
+		);
 
 		// If validation errors exist, return the errors
 		if (
@@ -350,13 +318,17 @@ export const processTransactions = async (req: Request, res: Response) => {
 
 		// Process valid records for insertion
 		parsedData.forEach((record, index) => {
-			if (duplicates.includes(index)) {
+			if (duplicates.includes(index + 1)) {
 				return;
 			}
 
 			const { date, description, amount, currency } = record;
 
 			console.log("record", record);
+
+			// Ensure description does not exceed 255 characters
+			const truncatedDescription: string =
+				description.length > 255 ? description.slice(0, 255) : description;
 
 			// // Convert date from dd-mm-yyyy to yyyy-mm-dd
 			// const parseDate = (dateString: string): string => {
@@ -369,7 +341,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 			// Prepare the transaction data for insertion
 			const transaction = em.create(Transaction, {
 				date: date,
-				description,
+				description: truncatedDescription,
 				amount: amount * 100, // Convert to cents if needed
 				currency,
 				deleted: false, // Default flag for new transactions
@@ -400,10 +372,10 @@ export const processTransactions = async (req: Request, res: Response) => {
 	}
 };
 
-// edit a transaction
+// Edit a transaction
 export const editTransaction = async (req: Request, res: Response) => {
-	// const { id } = req.params; // Transaction ID from the request URL
-	const { id, date, description, amount, currency } = req.body; // New data
+	const { id } = req.params; // Transaction ID from the request URL
+	const { date, description, amount, currency } = req.body; // New data
 	console.log("body", id, date, description, amount, currency);
 
 	try {
