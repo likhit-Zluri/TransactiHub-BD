@@ -15,10 +15,7 @@ config();
 const mikroOrmDefaultConfig: Options = {
 	driver: PostgreSqlDriver, // Use PostgreSQL driver
 	entities: [Transaction], // MikroORM entities
-	dbName:
-		process.env.NODE_ENV === "test"
-			? process.env.TEST_DB_NAME
-			: process.env.DB_NAME, // Database name
+	dbName: process.env.DB_NAME, // Database name
 	user: process.env.DB_USER, // Database user
 	password: process.env.DB_PASSWORD, // Database password
 	host: process.env.DB_HOST, // Database host
@@ -27,10 +24,14 @@ const mikroOrmDefaultConfig: Options = {
 };
 
 let orm: MikroORM;
-// let orm: MikroORM ;
+// let orm: MikroORM;
 // Function to initialize MikroORM
 export async function initializeORM(customConfig?: Options) {
 	try {
+		// console.log("node_env",process.env.NODE_ENV);
+		customConfig = {
+			dbName: process.env.TEST_DB_NAME,
+		};
 		// console.log("customConfig", customConfig);
 		// Use test database config if in test environment
 		const finalConfig = { ...mikroOrmDefaultConfig, ...customConfig };
@@ -47,18 +48,21 @@ export async function initializeORM(customConfig?: Options) {
 }
 
 export async function getORM(customConfig?: Options) {
-	if (orm === undefined) await initializeORM(customConfig);
+	if (orm === undefined || customConfig) {
+		console.log("initializeORM called");
+
+		await initializeORM(customConfig);
+	}
 	return orm;
 }
 
 export async function closeORM() {
-	console.log("orm", orm);
+	// console.log("orm", orm);
 
 	if (orm) {
 		await orm.close(true);
 		console.log("orm defined");
-	} else {
-		console.log("orm undefined");
 	}
-	// console.log("orm closed");
+	console.log("orm closed");
+	console.log("orm", orm === undefined);
 }

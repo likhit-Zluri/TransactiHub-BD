@@ -24,7 +24,7 @@ export const upload = multer({
 	},
 });
 
-export const handleUpload = (
+export const handleCSVUpload = (
 	req: Request,
 	res: Response,
 	next: NextFunction

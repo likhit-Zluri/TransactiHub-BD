@@ -11,5 +11,7 @@ export const getEntityManager = async () => {
 export const getForkedEntityManager = async () => {
 	if (em === undefined) em = (await getORM()).em as EntityManager;
 
+	// em.getContext()
+	
 	return em.fork();
 };

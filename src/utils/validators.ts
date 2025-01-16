@@ -19,14 +19,19 @@ export const validateTransaction = (record: any): string[] => {
 
 	// Validate the id format (uuid)
 	if (id !== undefined) {
-		if (
-			typeof id !== "string" ||
+		if (id && typeof id !== "string") {
+			console.log("invalid id type");
+			validationErrors.push(
+				`Invalid 'id' type: ${typeof id}. Expected type: string.`
+			);
+		} else if (
 			!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
 				id
 			)
 		) {
+			console.log("invalid id format");
 			validationErrors.push(
-				`Invalid 'id' type: ${typeof id}. Expected type: uuid.`
+				`Invalid 'id' format: ${id}. Expected format: uuid (32 hexadecimal digits in the group of form 8-4-4-4-12)`
 			);
 		}
 	}
@@ -90,8 +95,10 @@ export const checkForDuplicatesInCSV = (parsedData: TransactionInput[]) => {
 		const firstIndex = seenTransactions.get(transactionKey);
 
 		if (firstIndex !== undefined) {
+			console.log("firstIndex", firstIndex);
+
 			// Handle the possibility of `undefined`
-			duplicates.push(index); // Add current index to duplicates
+			duplicates.push(index + 1); // Add current index to duplicates
 			DuplicationErrors.push(
 				`Record at ${index + 1} is a duplicate of record at ${firstIndex + 1}`
 			);
@@ -131,6 +138,12 @@ export const validateCSVData = (parsedData: TransactionInput[]) => {
 	if (DuplicationErrors.length > 0) {
 		duplicationErrors.push(...DuplicationErrors);
 	}
+	console.log(
+		"errors in validateCSVData",
+		validationErrors,
+		duplicationErrors,
+		duplicates
+	);
 
 	return { validationErrors, duplicationErrors, duplicates };
 };

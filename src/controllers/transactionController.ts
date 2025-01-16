@@ -11,17 +11,16 @@ import {
 
 import { getForkedEntityManager } from "../utils/entityManager";
 
-// Add a transaction
-export const addTransaction = async (transactionData: any) => {
-	const { date, description, amount, currency } = transactionData;
-	console.log("date", date, description, amount, currency);
+// Add a single transaction
+export const addTransaction = async (req: Request, res: Response) => {
+	const { date, description, amount, currency } = req.body;
 
 	if (!date && !description && !amount && !currency) {
-		return {
-			status: 400,
+		res.status(400).json({
 			message:
 				"Missing required fields: date, description, amount, currency. Please provide the missing fields.",
-		};
+		});
+		return;
 	}
 
 	const missingFields: string[] = [];
@@ -43,12 +42,12 @@ export const addTransaction = async (transactionData: any) => {
 	}
 
 	if (missingFields.length > 0) {
-		return {
-			status: 400,
+		res.status(400).json({
 			message: `Missing required fields: ${missingFields.join(
 				", "
 			)}. Please provide the missing fields.`,
-		};
+		});
+		return;
 	}
 
 	// Checking validations and returning corresponding errors
@@ -60,11 +59,12 @@ export const addTransaction = async (transactionData: any) => {
 	});
 
 	if (validationErrors.length > 0) {
-		return {
-			status: 400,
+		res.status(400).json({
 			message: validationErrors.join(" "),
-		};
+		});
+		return;
 	}
+	console.log("date", date, description, amount, currency);
 
 	// // Converting date from dd-mm-yyyy to yyyy-mm-dd
 	// const parseDate = (dateString: string): string => {
@@ -85,11 +85,11 @@ export const addTransaction = async (transactionData: any) => {
 		});
 
 		if (existingTransaction) {
-			return {
-				status: 400,
+			res.status(400).json({
 				message:
 					"A transaction with the same date and description already exists.",
-			};
+			});
+			return;
 		}
 
 		// Create and populate a new transaction entry
@@ -97,6 +97,8 @@ export const addTransaction = async (transactionData: any) => {
 			date: date,
 			description,
 			amount: amount * 100, // As we have a precision of two
+			// to do update type as float in db but it would return a string from db
+
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -106,20 +108,19 @@ export const addTransaction = async (transactionData: any) => {
 		// Save the transaction to the database
 		await em.persistAndFlush(transaction);
 
-		return {
-			status: 201,
+		res.status(201).json({
 			message: "Transaction added successfully",
 			transaction,
-		};
+		});
+		return;
 	} catch (error: unknown) {
-		console.error("Transaction", transactionData);
-		console.log("Error adding transaction:", error);
+		console.error("Error adding transaction:", error);
 
-		return {
-			status: 500,
+		res.status(500).json({
 			message: "An error occurred while adding the transaction.",
 			error,
-		};
+		});
+		return;
 	}
 };
 
@@ -160,20 +161,34 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 			return;
 		}
 
-		const transactions = await em.find(
-			Transaction,
-			{},
-			{
-				orderBy: { date: "DESC" },
-				limit: Number(limitNum),
-				offset: (Number(pageNum) - 1) * Number(limitNum),
-			}
-		);
+		// promise. all it it will run all the functions in parallel
+		const [transactions, totalCount] = await Promise.all([
+			em.find(
+				Transaction,
+				{}, // dont get the deleted transaction
+				{
+					orderBy: { date: "DESC" },
+					limit: Number(limitNum),
+					offset: (Number(pageNum) - 1) * Number(limitNum),
+				}
+			),
+			em.count(Transaction),
+		]);
 
-		// console.log("transactions", transactions.length);
+		// const transactions = await em.find(
+		// 	Transaction,
+		// 	{}, // dont get the deleted transaction
+		// 	{
+		// 		orderBy: { date: "DESC" },
+		// 		limit: Number(limitNum),
+		// 		offset: (Number(pageNum) - 1) * Number(limitNum),
+		// 	}
+		// );
 
-		// Fetch total count of transactions
-		const totalCount = await em.count(Transaction);
+		// // console.log("transactions", transactions.length);
+
+		// // Fetch total count of transactions
+		// const totalCount = await em.count(Transaction);
 
 		// If no transactions are found, return appropriate message
 		if (totalCount === 0) {
@@ -202,14 +217,15 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 };
 
 // Soft delete a transaction
-export const softDeleteTransaction = async (req: Request, res: Response) => {
+export const deleteTransaction = async (req: Request, res: Response) => {
 	try {
 		const em = await getForkedEntityManager();
 
-		const { id } = req.body;
-		// const { id } = req.params;
+		// const { id } = req.body;
+		const { id } = req.params;
 
 		const transaction = await em.findOne(Transaction, { id });
+		// check for already deleted
 
 		if (!transaction) {
 			res.status(404).json({
@@ -237,10 +253,7 @@ export const softDeleteTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-export const softDeleteAllTransactions = async (
-	req: Request,
-	res: Response
-) => {
+export const deleteAllTransactions = async (req: Request, res: Response) => {
 	try {
 		const em = await getForkedEntityManager();
 
@@ -276,71 +289,15 @@ export const softDeleteAllTransactions = async (
 	}
 };
 
-// Hard delete all transactions
-export const hardDeleteAllTransactions = async (
-	req: Request,
-	res: Response
-) => {
-	try {
-		const em = await getForkedEntityManager();
-
-		// Fetch all transactions (no "deleted" filter here for hard delete)
-		const transactions = await em.find(Transaction, {});
-
-		if (transactions.length === 0) {
-			res.status(404).json({ message: "No transactions found to delete." });
-		}
-
-		// Permanently remove all transactions from the database
-		await em.removeAndFlush(transactions);
-
-		res.status(200).json({
-			message: "All transactions have been permanently deleted.",
-			deletedTransactionsCount: transactions.length,
-		});
-	} catch (error) {
-		console.error("Error hard deleting all transactions:", error);
-		res.status(500).json({
-			message: "An error occurred while hard deleting all transactions.",
-			error: error,
-		});
-	}
-};
-
 export const processTransactions = async (req: Request, res: Response) => {
 	try {
-		const routePath = req.originalUrl;
-		console.log(`Request received from route: ${routePath}`);
+		// const routePath = req.originalUrl;
+		// console.log(`Request received from route: ${routePath}`);
 
-		// Handle direct transaction addition for /api/addtransaction
-		if (routePath === "/api/addTransaction") {
-			// Validate if a single transaction payload is provided
-			const { date, description, amount, currency } = req.body;
-
-			// Prepare transaction data
-			const transactionData = {
-				date: date.toString(), // Ensure proper date conversion
-				description: description,
-				amount: amount, // Convert to cents if needed
-				currency: currency,
-			};
-
-			// Add the transaction
-			const result = await addTransaction(transactionData);
-			console.log("Result of direct transaction addition:", result);
-
-			if (result.status !== 201) {
-				res.status(result.status).json({ message: result.message });
-				return;
-			}
-
-			res.status(201).json({
-				message: "Transaction added successfully.",
-				transaction: transactionData,
-			});
-			return;
-		}
-		console.log("out");
+		// // Handle direct transaction addition for /api/addtransaction
+		// if (routePath === "/api/addTransaction") {
+		// }
+		// console.log("out");
 
 		const skipCSVDuplicates = req.body?.skipCSVDuplicates || "false";
 
@@ -356,7 +313,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 			res.status(400).json({ message: "No file uploaded" });
 			return;
 		}
-
+		console.log("req", req);
 		console.log("req.file", req.file);
 
 		// Parse the CSV data into JSON format
