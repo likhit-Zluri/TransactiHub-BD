@@ -34,13 +34,6 @@ export const handleCSVUpload = (
 		console.log("req.file", req.file, req.files);
 		console.log("file", typeof req.file, typeof req.files);
 
-		// Check if multiple files are uploaded
-		if (Array.isArray(req.files) && req.files.length > 1) {
-			return res.status(400).json({
-				message: "Multiple files are not allowed. Please upload only one file.",
-			});
-		}
-
 		if (err) {
 			console.log("error in multertConfig", err);
 
