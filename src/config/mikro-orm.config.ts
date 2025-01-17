@@ -10,12 +10,18 @@ config();
 const mikroOrmDefaultConfig: Options = defineConfig({
 	driver: PostgreSqlDriver, // Use PostgreSQL driver
 	entities: [Transaction], // MikroORM entities
-	dbName: process.env.DB_NAME, // Database name
-	user: process.env.DB_USER, // Database user
-	password: process.env.DB_PASSWORD, // Database password
-	host: process.env.DB_HOST, // Database host
-	port: Number(process.env.DB_PORT), // Database port
-	debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
+	// dbName: process.env.DB_NAME, // Database name
+	// user: process.env.DB_USER, // Database user
+	// password: process.env.DB_PASSWORD, // Database password
+	// host: process.env.DB_HOST, // Database host
+	// port: Number(process.env.DB_PORT), // Database port
+	// debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
+	clientUrl: process.env.CLIENT_URL,
+	driverOptions: {
+		connection: {
+			ssl: true,
+		},
+	},
 });
 
 let orm: MikroORM;
@@ -42,7 +48,7 @@ export async function initializeORM() {
 
 		// Initialize MikroORM with the final config
 		orm = await MikroORM.init(finalConfig);
-
+		console.log("orm intialized");
 		// return orm;
 	} catch (error: unknown) {
 		console.log("Unknown error during MikroORM initialization.", error);
@@ -65,3 +71,5 @@ export async function closeORM() {
 		console.log("orm defined and closed");
 	}
 }
+
+export default mikroOrmDefaultConfig;

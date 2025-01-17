@@ -1,3 +1,7 @@
+import e from "express";
+import { getORM } from "../config/mikro-orm.config";
+import { Transaction } from "../entities/Transaction";
+
 export interface TransactionInput {
 	date: string; // Should be in dd-mm-yyyy format
 	description: string;
@@ -177,4 +181,39 @@ export const validateCSVData = (parsedData: TransactionInput[]) => {
 	);
 
 	return { validationErrors, duplicationErrors, duplicates };
+};
+
+export const checkForDuplicatesInDB = async (
+	parsedData: TransactionInput[]
+): Promise<string[]> => {
+	const em = (await getORM()).em.fork();
+	const transactionRepo = em.getRepository(Transaction);
+
+	// Extract unique combinations of date and description from parsedData
+	const uniquePairs = parsedData.map((data, index) => ({
+		index: index + 1,
+		date: data.date,
+		description: data.description,
+	}));
+
+	// Check for existing transactions in the database with the same date and description
+	const existingTransactions = await transactionRepo.find({
+		$or: uniquePairs.map(({ date, description }) => ({
+			date,
+			description,
+			deleted: false,
+		})),
+	});
+
+	// Find duplicates and return a string array with messages
+	return uniquePairs
+		.filter(({ date, description }) =>
+			existingTransactions.some(
+				(tx) => tx.date === date && tx.description === description
+			)
+		)
+		.map(
+			({ index }) =>
+				`Record at index ${index} has a duplication in the database.`
+		);
 };

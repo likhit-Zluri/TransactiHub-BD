@@ -11,5 +11,5 @@ const server = app.listen(port, async () => {
 	const dynamicPort = (server.address() as any).port;
 	console.log(`The server is running at port ${dynamicPort}`);
 
-	initializeORM();
+	await initializeORM();
 });

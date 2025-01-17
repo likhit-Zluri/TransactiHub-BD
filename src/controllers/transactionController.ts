@@ -7,6 +7,8 @@ import {
 	TransactionInput,
 	validateTransaction,
 	validateCSVData,
+	checkForDuplicatesInCSV,
+	checkForDuplicatesInDB,
 } from "../utils/validators";
 
 import { getForkedEntityManager } from "../utils/entityManager";
@@ -63,7 +65,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 			description,
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-
+			amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -274,14 +276,14 @@ export const processTransactions = async (req: Request, res: Response) => {
 			typeof skipCSVDuplicates,
 			req.headers
 		);
-		
+
 		// Handle CSV upload
 		if (req.file == null) {
 			res.status(400).json({ message: "No file uploaded" });
 			return;
 		}
-		console.log("req", req);
-		console.log("req.file", req.file);
+		// console.log("req", req);
+		// console.log("req.file", req.file);
 
 		// Parse the CSV data into JSON format
 		const parsedData: TransactionInput[] = await parseCSV(req.file.buffer);
@@ -306,6 +308,19 @@ export const processTransactions = async (req: Request, res: Response) => {
 				message: `Validation failed for some records.`,
 				validationErrors: validationErrors,
 				duplicationErrors: duplicationErrors,
+			});
+			return;
+		}
+
+		const existingTransaction = await checkForDuplicatesInDB(parsedData);
+
+		console.log("existingTransaction", existingTransaction);
+
+		// If duplication in db exist, return the errors
+		if (existingTransaction.length > 0) {
+			res.status(400).json({
+				message: `duplication in DB for some records.`,
+				existingTransaction: existingTransaction,
 			});
 			return;
 		}
@@ -341,7 +356,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 			const transaction = em.create(Transaction, {
 				date: date,
 				description: truncatedDescription,
-				amount: amount * 100, // Convert to cents if needed
+				amount: amount * 100,
+				amountInINR: amount * 100 * 80,
 				currency,
 				deleted: false, // Default flag for new transactions
 				createdAt: new Date(),

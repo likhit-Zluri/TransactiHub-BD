@@ -44,6 +44,15 @@
           "nullable": false,
           "mappedType": "integer"
         },
+        "amount_in_inr": {
+          "name": "amount_in_inr",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
         "currency": {
           "name": "currency",
           "type": "varchar(255)",
@@ -88,17 +97,6 @@
       "name": "transaction",
       "schema": "public",
       "indexes": [
-        {
-          "keyName": "transaction_date_description_unique",
-          "columnNames": [
-            "date",
-            "description"
-          ],
-          "composite": true,
-          "constraint": true,
-          "primary": false,
-          "unique": true
-        },
         {
           "keyName": "transaction_pkey",
           "columnNames": [
