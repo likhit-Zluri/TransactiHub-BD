@@ -1,11 +1,5 @@
 import { MikroORM } from "@mikro-orm/core";
-import {
-	defineConfig,
-	EntityManager,
-	Options,
-	PostgreSqlDriver,
-	SqlEntityManager,
-} from "@mikro-orm/postgresql";
+import { defineConfig, Options, PostgreSqlDriver } from "@mikro-orm/postgresql";
 import { config } from "dotenv";
 import { Transaction } from "../entities/Transaction";
 
@@ -25,7 +19,7 @@ const mikroOrmDefaultConfig: Options = defineConfig({
 });
 
 let orm: MikroORM;
-// let orm: MikroORM;
+
 // Function to initialize MikroORM
 export async function initializeORM() {
 	try {
@@ -33,22 +27,22 @@ export async function initializeORM() {
 		const testConfig = {
 			dbName: process.env.TEST_DB_NAME,
 		};
-		// console.log("customConfig", customConfig);
-		// Use test database config if in test environment
+		// console.log("testConfig", testConfig);
 
+		// Use test database config if in test environment
 		let finalConfig = { ...mikroOrmDefaultConfig };
 
-		console.log("process.env.NODE_env", process.env.NODE_env);
+		// console.log("process.env.NODE_env", process.env.NODE_env);
 		if (process.env.NODE_env === "test") {
-			console.log("test");
-			finalConfig = { ...finalConfig,...testConfig };
+			// console.log("test");
+			finalConfig = { ...finalConfig, ...testConfig };
 		}
 
-		console.log("DB name", finalConfig);
+		console.log("DB name", finalConfig.dbName);
 
 		// Initialize MikroORM with the final config
 		orm = await MikroORM.init(finalConfig);
-		// console.log(typeof orm);
+
 		// return orm;
 	} catch (error: unknown) {
 		console.log("Unknown error during MikroORM initialization.", error);
@@ -66,12 +60,8 @@ export async function getORM() {
 }
 
 export async function closeORM() {
-	// console.log("orm", orm);
-
 	if (orm) {
 		await orm.close(true);
-		console.log("orm defined");
+		console.log("orm defined and closed");
 	}
-	console.log("orm closed");
-	console.log("orm", orm === undefined);
 }

@@ -16,23 +16,21 @@ import { handleCSVUpload } from "../utils/multerConfig";
 const router = express.Router();
 
 // Add a single transaction
-// router.post("/addTransaction", addTransaction);
 router.post("/transactions", addTransaction);
-// transaction addTransaction
 
-//edit a transaction
+// Edit a transaction
 router.put("/transactions/:id", editTransaction);
-// put
 
-// Get all transaction
+// Get all transactions
 router.get("/transactions", getAllTransactions);
 
+// Delete a transaction
 router.delete("/transactions/:id", deleteTransaction);
-// deleteTransaction/:id
 
-// Uploading CSV
+// Add multiple transactions through csv
 router.post("/transactions/upload", handleCSVUpload, processTransactions);
 
+// Delete all transactions
 router.delete("/transactions", deleteAllTransactions);
 
 export default router;

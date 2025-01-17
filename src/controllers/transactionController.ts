@@ -5,7 +5,6 @@ import { parseCSV } from "../services/csvParserService";
 
 import {
 	TransactionInput,
-	Record,
 	validateTransaction,
 	validateCSVData,
 } from "../utils/validators";
@@ -275,7 +274,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 			typeof skipCSVDuplicates,
 			req.headers
 		);
-
+		
 		// Handle CSV upload
 		if (req.file == null) {
 			res.status(400).json({ message: "No file uploaded" });
