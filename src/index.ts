@@ -1,11 +1,18 @@
 import express, { Request, Response } from "express";
 import transactionRoutes from "./routes/transactionRoutes";
+import cors from "cors";
 
 // Instantiate express
 const app = express();
 
 // Middleware to parse JSON
 app.use(express.json());
+app.use(
+	cors({
+		origin: "*",
+		credentials: true,
+	})
+);
 
 // (async () => {
 // 	await getORM();

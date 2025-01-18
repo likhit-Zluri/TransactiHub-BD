@@ -27,6 +27,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 
 	if (validationErrors.length > 0) {
 		res.status(400).json({
+			success: false,
 			message: validationErrors.join(" "),
 		});
 		return;
@@ -53,6 +54,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 
 		if (existingTransaction) {
 			res.status(400).json({
+				success: false,
 				message:
 					"A transaction with the same date and description already exists.",
 			});
@@ -76,6 +78,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		await em.persistAndFlush(transaction);
 
 		res.status(201).json({
+			success: true,
 			message: "Transaction added successfully",
 			transaction,
 		});
@@ -84,14 +87,114 @@ export const addTransaction = async (req: Request, res: Response) => {
 		console.error("Error adding transaction:", error);
 
 		res.status(500).json({
+			success: false,
 			message: "An error occurred while adding the transaction.",
-			error,
+			error: error,
 		});
 		return;
 	}
 };
 
 // Get all transactions
+// export const getAllTransactions = async (req: Request, res: Response) => {
+// 	const { page = 1, limit = 10 } = req.query;
+
+// 	try {
+// 		const em = await getForkedEntityManager();
+
+// 		// Validate page and limit inputs
+// 		const pageNum = Number(page);
+// 		const limitNum = Number(limit);
+
+// 		console.log(page, limit);
+// 		console.log(pageNum, limitNum);
+
+// 		if (isNaN(pageNum) || pageNum < 1) {
+// 			if (isNaN(limitNum) || limitNum < 1) {
+// 				// Combined response when both pageNum and limitNum are invalid
+// 				res.status(400).json({
+// 					success: false,
+// 					message: "Invalid page and limit. Both must be positive numbers.",
+// 				});
+// 			} else {
+// 				// Response when only pageNum is invalid
+// 				res.status(400).json({
+// 					success: false,
+// 					message: "Invalid page. It must be a positive number.",
+// 				});
+// 			}
+// 			return;
+// 		}
+
+// 		if (isNaN(limitNum) || limitNum < 1) {
+// 			// Response when only limitNum is invalid
+// 			res.status(400).json({
+// 				success: false,
+// 				message: "Invalid limit. It must be a positive number.",
+// 			});
+// 			return;
+// 		}
+
+// 		// promise. all it it will run all the functions in parallel
+// 		const [transactions, totalCount] = await Promise.all([
+// 			em.find(
+// 				Transaction,
+// 				{ deleted: false }, // dont get the deleted transaction
+// 				{
+// 					orderBy: { date: "DESC" },
+// 					limit: Number(limitNum),
+// 					offset: (Number(pageNum) - 1) * Number(limitNum),
+// 				}
+// 			),
+// 			em.count(Transaction, { deleted: false }),
+// 		]);
+
+// 		// const transactions = await em.find(
+// 		// 	Transaction,
+// 		// 	{}, // dont get the deleted transaction
+// 		// 	{
+// 		// 		orderBy: { date: "DESC" },
+// 		// 		limit: Number(limitNum),
+// 		// 		offset: (Number(pageNum) - 1) * Number(limitNum),
+// 		// 	}
+// 		// );
+
+// 		// // console.log("transactions", transactions.length);
+
+// 		// // Fetch total count of transactions
+// 		// const totalCount = await em.count(Transaction);
+
+// 		// If no transactions are found, return appropriate message
+// 		if (totalCount === 0) {
+// 			res.status(200).json({
+// 				success: true,
+// 				message: "Transactions fetched successfully. No transactions found.",
+// 				data: {
+// 					totalCount: totalCount,
+// 					transactions: [],
+// 				},
+// 			});
+// 			return;
+// 		}
+
+// 		res.status(200).json({
+// 			success: true,
+// 			message: "Transactions fetched successfully",
+// 			data: {
+// 				totalCount: totalCount,
+// 				transactions: transactions,
+// 			},
+// 		});
+// 	} catch (error: unknown) {
+// 		console.error("Error fetching transactions", error);
+// 		res.status(500).json({
+// 			success: false,
+// 			message: "Error fetching transactions",
+// 			error: error,
+// 		});
+// 	}
+// };
+
 export const getAllTransactions = async (req: Request, res: Response) => {
 	const { page = 1, limit = 10 } = req.query;
 
@@ -102,84 +205,84 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 		const pageNum = Number(page);
 		const limitNum = Number(limit);
 
-		console.log(page, limit);
-		console.log(pageNum, limitNum);
-
 		if (isNaN(pageNum) || pageNum < 1) {
 			if (isNaN(limitNum) || limitNum < 1) {
 				// Combined response when both pageNum and limitNum are invalid
 				res.status(400).json({
-					message: "Invalid page and limit. Both must be positive numbers.",
+					success: false,
+					message: "Invalid 'page' and 'limit'. Both must be positive numbers.",
+					data: null,
 				});
-			} else {
-				// Response when only pageNum is invalid
-				res.status(400).json({
-					message: "Invalid page. It must be a positive number.",
-				});
+				return;
 			}
+
+			// Response when only pageNum is invalid
+			res.status(400).json({
+				success: false,
+				message: "Invalid 'page'. It must be a positive number.",
+				data: null,
+			});
 			return;
 		}
 
 		if (isNaN(limitNum) || limitNum < 1) {
 			// Response when only limitNum is invalid
 			res.status(400).json({
-				message: "Invalid limit. It must be a positive number.",
+				success: false,
+				message: "Invalid 'limit'. It must be a positive number.",
+				data: null,
 			});
 			return;
 		}
 
-		// promise. all it it will run all the functions in parallel
+		// Run queries in parallel using Promise.all
 		const [transactions, totalCount] = await Promise.all([
 			em.find(
 				Transaction,
-				{ deleted: false }, // dont get the deleted transaction
+				{ deleted: false }, // Exclude deleted transactions
 				{
 					orderBy: { date: "DESC" },
-					limit: Number(limitNum),
-					offset: (Number(pageNum) - 1) * Number(limitNum),
+					limit: limitNum,
+					offset: (pageNum - 1) * limitNum,
 				}
 			),
 			em.count(Transaction, { deleted: false }),
 		]);
 
-		// const transactions = await em.find(
-		// 	Transaction,
-		// 	{}, // dont get the deleted transaction
-		// 	{
-		// 		orderBy: { date: "DESC" },
-		// 		limit: Number(limitNum),
-		// 		offset: (Number(pageNum) - 1) * Number(limitNum),
-		// 	}
-		// );
-
-		// // console.log("transactions", transactions.length);
-
-		// // Fetch total count of transactions
-		// const totalCount = await em.count(Transaction);
-
-		// If no transactions are found, return appropriate message
 		if (totalCount === 0) {
-			res.status(200).json({
-				message: "Transactions fetched successfully. No transactions found.",
-				data: totalCount,
-				transactions: [],
+			// No transactions found
+			res.status(204).json({
+				success: true,
+				message: "No transactions found.",
+				data: {
+					totalCount: totalCount,
+					transactions: [],
+				},
 			});
 			return;
 		}
 
+		// Transactions fetched successfully
 		res.status(200).json({
-			message: `${(pageNum - 1) * limitNum + 1} - ${
-				(pageNum - 1) * limitNum + transactions.length
-			} Transactions fetched successfully`,
-			data: totalCount,
-			transactions,
+			success: true,
+			message: "Transactions fetched successfully.",
+			data: {
+				totalCount: totalCount,
+				transactions: transactions,
+			},
 		});
+		return;
 	} catch (error: unknown) {
 		console.error("Error fetching transactions", error);
+
+		// Internal Server Error
 		res.status(500).json({
-			message: "Error fetching transactions",
-			error: error,
+			success: false,
+			message: "An error occurred while fetching transactions.",
+			error: error instanceof Error ? error.message : "Unknown error",
+			data: null,
 		});
+		return;
 	}
 };
 
