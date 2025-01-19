@@ -51,7 +51,7 @@ export async function initializeORM() {
 		console.log("orm intialized");
 		// return orm;
 	} catch (error: unknown) {
-		console.log("Unknown error during MikroORM initialization.", error);
+		console.error("Unknown error during MikroORM initialization.", error);
 		throw new Error(`Error initializing MikroORM: ${error}`);
 	}
 }

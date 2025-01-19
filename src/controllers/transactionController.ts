@@ -7,9 +7,10 @@ import {
 	TransactionInput,
 	validateTransaction,
 	validateCSVData,
-	checkForDuplicatesInCSV,
 	checkForDuplicatesInDB,
 } from "../utils/validators";
+
+import { convertCurrency } from "../utils/currencyConverter";
 
 import { getForkedEntityManager } from "../utils/entityManager";
 
@@ -67,6 +68,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 			description,
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
+			// amountInINR: await convertCurrency(amount * 100, currency, date),
 			amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
@@ -89,14 +91,14 @@ export const addTransaction = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while adding the transaction.",
-			error: error,
+			error: error instanceof Error ? error.message : error,
 		});
 		return;
 	}
 };
 
 // Get all transactions
-export const getAllTransactions = async (req: Request, res: Response) => {
+export const getPaginatedTransactions = async (req: Request, res: Response) => {
 	const { page = 1, limit = 10 } = req.query;
 
 	try {
@@ -141,14 +143,29 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 			em.find(
 				Transaction,
 				{ deleted: false }, // Exclude deleted transactions
-				{
-					orderBy: { date: "DESC" },
-					limit: limitNum,
-					offset: (pageNum - 1) * limitNum,
-				}
+				{ limit: limitNum, offset: (pageNum - 1) * limitNum }
 			),
 			em.count(Transaction, { deleted: false }),
 		]);
+
+		// const test = [
+		// 	{ date: "01-09-2021" },
+		// 	{ date: "31-12-2024" },
+		// 	{ date: "28-01-2025" },
+		// ];
+		// test.sort((a, b) => {
+		// 	const dateA = new Date(a.date.split("-").reverse().join("-"));
+		// 	const dateB = new Date(b.date.split("-").reverse().join("-"));
+		// 	return dateB.getTime() - dateA.getTime(); // DESC order
+		// });
+		// console.log("155", test);
+
+		// Sort in memory using JavaScript
+		transactions.sort((a, b) => {
+			const dateA = new Date(a.date.split("-").reverse().join("-"));
+			const dateB = new Date(b.date.split("-").reverse().join("-"));
+			return dateB.getTime() - dateA.getTime(); // DESC order
+		});
 
 		if (totalCount === 0) {
 			// No transactions found
@@ -180,7 +197,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while fetching transactions.",
-			error: error instanceof Error ? error.message : "Unknown error",
+			error: error instanceof Error ? error.message : error,
 			data: null,
 		});
 		return;
@@ -201,6 +218,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 
 		if (!transaction) {
 			res.status(404).json({
+				status: false,
 				message: "Transaction not found",
 			});
 
@@ -211,16 +229,17 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		await em.flush();
 
 		res.status(200).json({
+			status: true,
 			message: "Transaction soft deleted successfully",
-			transaction,
 		});
 		return;
 	} catch (error: unknown) {
 		console.error("Error soft deleting transaction:", error);
 
 		res.status(500).json({
+			status: false,
 			message: "Error soft deleting transaction",
-			error: error,
+			error: error instanceof Error ? error.message : error,
 		});
 	}
 };
@@ -253,11 +272,11 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 			message: "All transactions have been soft deleted successfully.",
 			deletedTransactionsCount: transactions.length,
 		});
-	} catch (error) {
+	} catch (error: unknown) {
 		console.error("Error soft deleting all transactions:", error);
 		res.status(500).json({
 			message: "An error occurred while soft deleting all transactions.",
-			error: error,
+			error: error instanceof Error ? error.message : error,
 		});
 	}
 };
@@ -336,7 +355,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		const em = await getForkedEntityManager();
 
 		// Process valid records for insertion
-		parsedData.forEach((record, index) => {
+		parsedData.forEach(async (record, index) => {
 			if (duplicates.includes(index + 1)) {
 				return;
 			}
@@ -362,6 +381,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 				date: date,
 				description: truncatedDescription,
 				amount: amount * 100,
+				// amountInINR: await convertCurrency(amount * 100, currency, date),
 				amountInINR: amount * 100 * 80,
 				currency,
 				deleted: false, // Default flag for new transactions
@@ -384,10 +404,9 @@ export const processTransactions = async (req: Request, res: Response) => {
 	} catch (error: unknown) {
 		console.error("Error while uploading and processing CSV:", error);
 
-		// Handle general errors
 		res.status(500).json({
 			message: "An error occurred while processing the CSV file.",
-			error: (error as Error).message || "Unknown error",
+			error: error instanceof Error ? error.message : error,
 		});
 	}
 };
@@ -444,11 +463,11 @@ export const editTransaction = async (req: Request, res: Response) => {
 			transaction,
 		});
 		return;
-	} catch (error) {
+	} catch (error:unknown) {
 		console.error("Error editing transaction:", error);
 		res.status(500).json({
 			message: "An error occurred while editing the transaction.",
-			error,
+			error: error instanceof Error ? error.message : error,
 		});
 		return;
 	}
