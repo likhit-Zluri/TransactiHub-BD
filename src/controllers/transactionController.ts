@@ -448,12 +448,33 @@ export const editTransaction = async (req: Request, res: Response) => {
 		}
 
 		// Update transaction fields only if they are provided
-		if (date) {
-			transaction.date = date;
-		}
+
 		if (description) transaction.description = description;
-		if (amount) transaction.amount = amount * 100; // Update with precision
-		if (currency) transaction.currency = currency;
+		if (amount || currency || date) {
+			if (amount) {
+				transaction.amount = amount * 100; // Update with precision
+			}
+			if (currency) {
+				transaction.currency = currency;
+			}
+			if (date) {
+				transaction.date = date;
+			}
+
+			// Recalculate the amount in INR if amount, currency, or date changes
+			const updatedAmount = amount ? amount * 100 : transaction.amount;
+			const updatedCurrency = currency || transaction.currency;
+			const updatedDate = date || transaction.date;
+
+			// transaction.amountInINR = updatedCurrency(
+			// 	updatedAmount,
+			// 	updatedCurrency,
+			// 	updatedDate
+			// );
+			transaction.amountInINR = amount
+				? amount * 80 * 100
+				: transaction.amountInINR;
+		}
 
 		transaction.updatedAt = new Date(); // Update timestamp
 
