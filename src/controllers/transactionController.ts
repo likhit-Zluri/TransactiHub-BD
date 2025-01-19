@@ -82,7 +82,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		res.status(201).json({
 			success: true,
 			message: "Transaction added successfully",
-			transaction,
+			data: { transaction },
 		});
 		return;
 	} catch (error: unknown) {
@@ -97,7 +97,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-// Get all transactions
+// Get paginated transactions
 export const getPaginatedTransactions = async (req: Request, res: Response) => {
 	const { page = 1, limit = 10 } = req.query;
 
@@ -425,6 +425,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 
 		if (!transaction) {
 			res.status(404).json({
+				success: false,
 				message: `Transaction with ID ${id} not found.`,
 			});
 			return;
@@ -440,6 +441,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 
 		if (validationErrors.length > 0) {
 			res.status(400).json({
+				success: false,
 				message: validationErrors.join(" "),
 			});
 			return;
@@ -459,13 +461,15 @@ export const editTransaction = async (req: Request, res: Response) => {
 		await em.persistAndFlush(transaction);
 
 		res.status(200).json({
+			success: true,
 			message: "Transaction updated successfully.",
-			transaction,
+			data: { transaction },
 		});
 		return;
-	} catch (error:unknown) {
+	} catch (error: unknown) {
 		console.error("Error editing transaction:", error);
 		res.status(500).json({
+			success: false,
 			message: "An error occurred while editing the transaction.",
 			error: error instanceof Error ? error.message : error,
 		});
