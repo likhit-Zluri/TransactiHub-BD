@@ -2,7 +2,7 @@
 	"name": "transactihub-bd",
 	"version": "1.0.0",
 	"scripts": {
-		"start": "npx tsx --env-file=.env --watch ./src/server.ts",
+		"start": "ts-node ./src/server.ts",
 		"dev": "ts-node src/server.ts",
 		"nodemon": "nodemon --watch src --exec ts-node ./src/server.ts",
 		"build": "tsc",

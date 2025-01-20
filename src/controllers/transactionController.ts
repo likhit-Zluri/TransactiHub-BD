@@ -33,7 +33,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		});
 		return;
 	}
-	// console.log("date", date, description, amount, currency);
+	console.log("body in addTransaction", date, description, amount, currency);
 
 	// // Converting date from dd-mm-yyyy to yyyy-mm-dd
 	// const parseDate = (dateString: string): string => {
@@ -68,8 +68,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 			description,
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-			// amountInINR: await convertCurrency(amount * 100, currency, date),
-			amountInINR: amount * 100 * 80,
+			amountInINR: await convertCurrency(amount * 100, currency, date),
+			// amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -147,19 +147,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			),
 			em.count(Transaction, { deleted: false }),
 		]);
-
-		// const test = [
-		// 	{ date: "01-09-2021" },
-		// 	{ date: "31-12-2024" },
-		// 	{ date: "28-01-2025" },
-		// ];
-		// test.sort((a, b) => {
-		// 	const dateA = new Date(a.date.split("-").reverse().join("-"));
-		// 	const dateB = new Date(b.date.split("-").reverse().join("-"));
-		// 	return dateB.getTime() - dateA.getTime(); // DESC order
-		// });
-		// console.log("155", test);
-
+		
 		// Sort in memory using JavaScript
 		transactions.sort((a, b) => {
 			const dateA = new Date(a.date.split("-").reverse().join("-"));
