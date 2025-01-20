@@ -44,7 +44,7 @@ export async function initializeORM() {
 			finalConfig = { ...finalConfig, ...testConfig };
 		}
 
-		console.log("DB name", finalConfig.dbName);
+		// console.log("DB name", finalConfig.dbName);
 
 		// Initialize MikroORM with the final config
 		orm = await MikroORM.init(finalConfig);
