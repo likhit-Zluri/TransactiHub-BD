@@ -17,6 +17,7 @@ const mikroOrmDefaultConfig: Options = defineConfig({
 	// port: Number(process.env.DB_PORT), // Database port
 	// debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
 	clientUrl: process.env.CLIENT_URL,
+	// clientUrl: process.env.TEST_DB_CLIENT_URL,
 	driverOptions: {
 		connection: {
 			ssl: true,
@@ -30,8 +31,11 @@ let orm: MikroORM;
 export async function initializeORM() {
 	try {
 		// console.log("node_env",process.env.NODE_ENV);
+		// const testConfig = {
+		// 	dbName: process.env.TEST_DB_NAME,
+		// };
 		const testConfig = {
-			dbName: process.env.TEST_DB_NAME,
+			clientUrl: process.env.TEST_DB_CLIENT_URL,
 		};
 		// console.log("testConfig", testConfig);
 
@@ -44,7 +48,7 @@ export async function initializeORM() {
 			finalConfig = { ...finalConfig, ...testConfig };
 		}
 
-		// console.log("DB name", finalConfig.dbName);
+		// console.log("DB name", finalConfig.clientUrl);
 
 		// Initialize MikroORM with the final config
 		orm = await MikroORM.init(finalConfig);

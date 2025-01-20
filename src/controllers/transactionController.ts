@@ -69,8 +69,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 			description,
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-			amountInINR: await convertCurrency(amount * 100, currency, date),
-			// amountInINR: amount * 100 * 80,
+			// amountInINR: await convertCurrency(amount * 100, currency, date),
+			amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -115,7 +115,10 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 				res.status(400).json({
 					success: false,
 					message: "Invalid 'page' and 'limit'. Both must be positive numbers.",
-					data: null,
+					data: {
+						totalCount: -1,
+						transactions: null,
+					},
 				});
 				return;
 			}
@@ -124,7 +127,10 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			res.status(400).json({
 				success: false,
 				message: "Invalid 'page'. It must be a positive number.",
-				data: null,
+				data: {
+					totalCount: -1,
+					transactions: null,
+				},
 			});
 			return;
 		}
@@ -134,13 +140,16 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			res.status(400).json({
 				success: false,
 				message: "Invalid 'limit'. It must be a positive number.",
-				data: null,
+				data: {
+					totalCount: -1,
+					transactions: null,
+				},
 			});
 			return;
 		}
-		const offset = (pageNum - 1) * limitNum;
 
-		console.log("limit", limitNum, offset);
+		const offset = (pageNum - 1) * limitNum;
+		// console.log("limit", limitNum, offset);
 
 		// Run queries in parallel using Promise.all
 		const [transactions, totalCount] = await Promise.all([
@@ -153,7 +162,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			em.count(Transaction, { deleted: false }),
 		]);
 
-		console.log("transactions", transactions);
+		console.log("response from promise.all", transactions, totalCount);
 
 		// Sort in memory using JavaScript
 		// transactions.sort((a, b) => {
@@ -191,9 +200,12 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		// Internal Server Error
 		res.status(500).json({
 			success: false,
-			message: "An error occurred while fetching transactions.",
+			message: "Error fetching transactions",
 			error: error instanceof Error ? error.message : error,
-			data: null,
+			data: {
+				totalCount: -1,
+				transactions: null,
+			},
 		});
 		return;
 	}
@@ -213,7 +225,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 
 		if (!transaction) {
 			res.status(404).json({
-				status: false,
+				success: false,
 				message: "Transaction not found",
 			});
 
@@ -224,7 +236,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		await em.flush();
 
 		res.status(200).json({
-			status: true,
+			success: true,
 			message: "Transaction soft deleted successfully",
 		});
 		return;
@@ -232,7 +244,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		console.error("Error soft deleting transaction:", error);
 
 		res.status(500).json({
-			status: false,
+			success: false,
 			message: "Error soft deleting transaction",
 			error: error instanceof Error ? error.message : error,
 		});
@@ -248,9 +260,10 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		const transactions = await em.find(Transaction, { deleted: false });
 
 		if (transactions.length === 0) {
-			res
-				.status(404)
-				.json({ message: "No transactions found to soft delete." });
+			res.status(404).json({
+				success: false,
+				message: "No transactions found to soft delete.",
+			});
 			return;
 		}
 
@@ -264,12 +277,14 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		await em.persistAndFlush(transactions);
 
 		res.status(200).json({
+			success: true,
 			message: "All transactions have been soft deleted successfully.",
 			deletedTransactionsCount: transactions.length,
 		});
 	} catch (error: unknown) {
 		console.error("Error soft deleting all transactions:", error);
 		res.status(500).json({
+			success: false,
 			message: "An error occurred while soft deleting all transactions.",
 			error: error instanceof Error ? error.message : error,
 		});
