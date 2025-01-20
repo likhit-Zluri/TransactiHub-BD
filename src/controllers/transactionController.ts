@@ -13,6 +13,7 @@ import {
 import { convertCurrency } from "../utils/currencyConverter";
 
 import { getForkedEntityManager } from "../utils/entityManager";
+import { off } from "process";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
@@ -137,23 +138,29 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			});
 			return;
 		}
+		const offset = (pageNum - 1) * limitNum;
+
+		console.log("limit", limitNum, offset);
 
 		// Run queries in parallel using Promise.all
 		const [transactions, totalCount] = await Promise.all([
-			em.find(
-				Transaction,
-				{ deleted: false }, // Exclude deleted transactions
-				{ limit: limitNum, offset: (pageNum - 1) * limitNum }
-			),
+			em
+				.getConnection()
+				.execute(`SELECT * FROM sorted_transactions_view LIMIT ? OFFSET ?`, [
+					limitNum,
+					offset,
+				]),
 			em.count(Transaction, { deleted: false }),
 		]);
-		
+
+		console.log("transactions", transactions);
+
 		// Sort in memory using JavaScript
-		transactions.sort((a, b) => {
-			const dateA = new Date(a.date.split("-").reverse().join("-"));
-			const dateB = new Date(b.date.split("-").reverse().join("-"));
-			return dateB.getTime() - dateA.getTime(); // DESC order
-		});
+		// transactions.sort((a, b) => {
+		// 	const dateA = new Date(a.date.split("-").reverse().join("-"));
+		// 	const dateB = new Date(b.date.split("-").reverse().join("-"));
+		// 	return dateB.getTime() - dateA.getTime(); // DESC order
+		// });
 
 		if (totalCount === 0) {
 			// No transactions found
@@ -161,7 +168,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 				success: true,
 				message: "No transactions found.",
 				data: {
-					totalCount: totalCount,
+					totalCount: 0,
 					transactions: [],
 				},
 			});
@@ -485,3 +492,23 @@ export const editTransaction = async (req: Request, res: Response) => {
 		return;
 	}
 };
+
+// Call this when you need to refresh the view
+
+async function refreshMaterializedView(limitNum: number, pageNum: number) {
+	const em = await getForkedEntityManager();
+
+	// Refresh the materialized view first
+	await em
+		.getConnection()
+		.execute("REFRESH MATERIALIZED VIEW sorted_transactions_view");
+
+	// Now, fetch the sorted transactions with limit and offset
+	const transactions = await em.find(
+		"Transaction", // Replace with your actual entity or materialized view name
+		{ deleted: false }, // Filter out deleted records
+		{ limit: limitNum, offset: (pageNum - 1) * limitNum }
+	);
+
+	return transactions;
+}
