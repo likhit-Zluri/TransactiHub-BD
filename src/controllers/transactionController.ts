@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import { Transaction } from "../entities/Transaction";
+
 import { parseCSV } from "../services/csvParserService";
 
 import {
@@ -13,7 +14,7 @@ import {
 import { convertCurrency } from "../utils/currencyConverter";
 
 import { getForkedEntityManager } from "../utils/entityManager";
-import { off } from "process";
+import { dateFormatter } from "../utils/dataFormatter";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
@@ -49,10 +50,11 @@ export const addTransaction = async (req: Request, res: Response) => {
 
 		// Find if a transaction with the same date and description already exists
 		const existingTransaction = await em.findOne(Transaction, {
-			date: date,
+			parsedDate: dateFormatter(date),
 			description,
 			deleted: false, // Ensure we're checking only non-deleted transactions
 		});
+		console.log("after");
 
 		if (existingTransaction) {
 			res.status(400).json({
@@ -63,19 +65,24 @@ export const addTransaction = async (req: Request, res: Response) => {
 			return;
 		}
 
+		console.log("Got here");
+
 		// Create and populate a new transaction entry
 		const transaction = em.create(Transaction, {
 			date: date,
 			description,
+			parsedDate: dateFormatter(date),
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-			// amountInINR: await convertCurrency(amount * 100, currency, date),
-			amountInINR: amount * 100 * 80,
+			amountInINR: await convertCurrency(amount * 100, currency, date),
+			// amountInINR: amount * 100 * c80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		});
+
+		console.log("Creatingdata");
 
 		// Save the transaction to the database
 		await em.persistAndFlush(transaction);
@@ -104,13 +111,20 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 
 	try {
 		const em = await getForkedEntityManager();
-
+		console.log("page,limit", page, typeof page, limit, typeof limit);
 		// Validate page and limit inputs
 		const pageNum = Number(page);
 		const limitNum = Number(limit);
-
+		console.log(
+			"pageNum,limitNum",
+			pageNum,
+			typeof pageNum,
+			limitNum,
+			typeof limitNum
+		);
 		if (isNaN(pageNum) || pageNum < 1) {
 			if (isNaN(limitNum) || limitNum < 1) {
+				console.log("Invalid 'page' and 'limit'");
 				// Combined response when both pageNum and limitNum are invalid
 				res.status(400).json({
 					success: false,
@@ -122,7 +136,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 				});
 				return;
 			}
-
+			console.log("Invalid 'page'");
 			// Response when only pageNum is invalid
 			res.status(400).json({
 				success: false,
@@ -148,30 +162,30 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			return;
 		}
 
+		// await refreshMaterializedView();
+
 		const offset = (pageNum - 1) * limitNum;
 		// console.log("limit", limitNum, offset);
 
 		// Run queries in parallel using Promise.all
 		const [transactions, totalCount] = await Promise.all([
-			em
-				.getConnection()
-				.execute(`SELECT * FROM sorted_transactions_view LIMIT ? OFFSET ?`, [
-					limitNum,
-					offset,
-				]),
+			em.find(
+				Transaction,
+				{ deleted: false }, // dont get the deleted transaction
+				{
+					orderBy: { parsedDate: "DESC" },
+					limit: Number(limitNum),
+					offset: (Number(pageNum) - 1) * Number(limitNum),
+				}
+			),
 			em.count(Transaction, { deleted: false }),
 		]);
 
 		console.log("response from promise.all", transactions, totalCount);
 
-		// Sort in memory using JavaScript
-		// transactions.sort((a, b) => {
-		// 	const dateA = new Date(a.date.split("-").reverse().join("-"));
-		// 	const dateB = new Date(b.date.split("-").reverse().join("-"));
-		// 	return dateB.getTime() - dateA.getTime(); // DESC order
-		// });
-
 		if (totalCount === 0) {
+			console.log("first");
+
 			// No transactions found
 			res.status(204).json({
 				success: true,
@@ -294,14 +308,6 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 // Add multiple transaction through csv file
 export const processTransactions = async (req: Request, res: Response) => {
 	try {
-		// const routePath = req.originalUrl;
-		// console.log(`Request received from route: ${routePath}`);
-
-		// // Handle direct transaction addition for /api/addtransaction
-		// if (routePath === "/api/addTransaction") {
-		// }
-		// console.log("out");
-
 		const skipCSVDuplicates = req.body?.skipCSVDuplicates || "false";
 
 		console.log(
@@ -365,42 +371,47 @@ export const processTransactions = async (req: Request, res: Response) => {
 		const em = await getForkedEntityManager();
 
 		// Process valid records for insertion
-		parsedData.forEach(async (record, index) => {
-			if (duplicates.includes(index + 1)) {
-				return;
-			}
+		await Promise.all(
+			parsedData.map(async (record, index) => {
+				if (duplicates.includes(index + 1)) {
+					return;
+				}
 
-			const { date, description, amount, currency } = record;
+				const { date, description, amount, currency } = record;
 
-			console.log("record", record);
+				// console.log("record", record);
 
-			// Ensure description does not exceed 255 characters
-			const truncatedDescription: string =
-				description.length > 255 ? description.slice(0, 255) : description;
+				// Ensure description does not exceed 255 characters
+				const truncatedDescription: string =
+					description.length > 255 ? description.slice(0, 255) : description;
 
-			// // Convert date from dd-mm-yyyy to yyyy-mm-dd
-			// const parseDate = (dateString: string): string => {
-			// 	const [day, month, year] = dateString.split("-");
-			// 	return `${year}-${month}-${day}`;
-			// };
+				// // Convert date from dd-mm-yyyy to yyyy-mm-dd
+				// const parseDate = (dateString: string): string => {
+				// 	const [day, month, year] = dateString.split("-");
+				// 	return `${year}-${month}-${day}`;
+				// };
 
-			// const parsedDate = parseDate(date);
+				// const parsedDate = parseDate(date);
 
-			// Prepare the transaction data for insertion
-			const transaction = em.create(Transaction, {
-				date: date,
-				description: truncatedDescription,
-				amount: amount * 100,
-				// amountInINR: await convertCurrency(amount * 100, currency, date),
-				amountInINR: amount * 100 * 80,
-				currency,
-				deleted: false, // Default flag for new transactions
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			});
+				// Prepare the transaction data for insertion
+				const transaction = em.create(Transaction, {
+					date: date,
+					parsedDate: dateFormatter(date),
+					description: truncatedDescription,
+					amount: amount * 100,
+					amountInINR: await convertCurrency(amount * 100, currency, date),
+					// amountInINR: amount * 100 * 80,
+					currency,
+					deleted: false, // Default flag for new transactions
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
 
-			transactionArray.push(transaction);
-		});
+				transactionArray.push(transaction);
+			})
+		);
+
+		console.log("transactionArray", transactionArray);
 
 		// Bulk insert the transactions
 		await em.persistAndFlush(transactionArray);
@@ -509,21 +520,11 @@ export const editTransaction = async (req: Request, res: Response) => {
 };
 
 // Call this when you need to refresh the view
-
-async function refreshMaterializedView(limitNum: number, pageNum: number) {
+async function refreshMaterializedView() {
 	const em = await getForkedEntityManager();
 
 	// Refresh the materialized view first
 	await em
 		.getConnection()
 		.execute("REFRESH MATERIALIZED VIEW sorted_transactions_view");
-
-	// Now, fetch the sorted transactions with limit and offset
-	const transactions = await em.find(
-		"Transaction", // Replace with your actual entity or materialized view name
-		{ deleted: false }, // Filter out deleted records
-		{ limit: limitNum, offset: (pageNum - 1) * limitNum }
-	);
-
-	return transactions;
 }

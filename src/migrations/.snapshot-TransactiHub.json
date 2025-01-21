@@ -25,6 +25,16 @@
           "length": 255,
           "mappedType": "string"
         },
+        "parsed_date": {
+          "name": "parsed_date",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 0,
+          "mappedType": "date"
+        },
         "description": {
           "name": "description",
           "type": "varchar(255)",
