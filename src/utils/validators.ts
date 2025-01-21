@@ -20,7 +20,7 @@ export interface Record {
 export const validateTransaction = (record: any): string[] => {
 	const validationErrors: string[] = [];
 	const { id, date, description, amount, currency } = record;
-	// console.log("date", date, amount, typeof amount);
+	console.log("record in validateTransaction", date, amount, typeof amount);
 
 	const missingFields: string[] = [];
 

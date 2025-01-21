@@ -9,9 +9,10 @@ export async function convertCurrency(
 	try {
 		// const apiUrl = `${process.env.CURRENCY_API_URL}apikey=${process.env.CURRENCY_API_KEY}&currencies=${toCurrency}&base_currency=INR&date=${date}`;
 		const parsedData = dateFormatter(date);
-		// console.log("Date", parsedData, toCurrency);
+		console.log("Date", parsedData, toCurrency);
 
 		const apiUrl = `${process.env.CURRENCY_API_URL}/${parsedData}/${toCurrency}`;
+		console.log("apiUrl", apiUrl);
 
 		// Fetch the exchange rates for the specified date
 		const response = await axios.get(apiUrl);

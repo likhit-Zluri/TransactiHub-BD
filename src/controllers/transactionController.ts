@@ -479,7 +479,8 @@ export const editTransaction = async (req: Request, res: Response) => {
 				transaction.currency = currency;
 			}
 			if (date) {
-				transaction.date = date;
+				transaction.date=date;
+				transaction.parsedDate=new Date(dateFormatter(date));
 			}
 
 			// Recalculate the amount in INR if amount, currency, or date changes
@@ -487,14 +488,15 @@ export const editTransaction = async (req: Request, res: Response) => {
 			const updatedCurrency = currency || transaction.currency;
 			const updatedDate = date || transaction.date;
 
-			// transaction.amountInINR = updatedCurrency(
-			// 	updatedAmount,
-			// 	updatedCurrency,
-			// 	updatedDate
-			// );
-			transaction.amountInINR = amount
-				? amount * 80 * 100
-				: transaction.amountInINR;
+			transaction.amountInINR = await convertCurrency(
+				updatedAmount,
+				updatedCurrency,
+				updatedDate
+			);
+
+			// transaction.amountInINR = amount
+			// 	? amount * 80 * 100
+			// 	: transaction.amountInINR;
 		}
 
 		transaction.updatedAt = new Date(); // Update timestamp
