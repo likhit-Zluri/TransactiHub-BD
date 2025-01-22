@@ -27,9 +27,7 @@ export const parseCSV = (buffer: Buffer): Promise<any[]> => {
 
 				if (missingColumns.length > 0) {
 					return reject(
-						new Error(
-							`Missing required columns: ${missingColumns.join(", ")}.`
-						)
+						new Error(`Missing required columns: ${missingColumns.join(", ")}.`)
 					);
 				}
 			})

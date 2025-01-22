@@ -44,7 +44,7 @@ export async function initializeORM() {
 
 		// console.log("process.env.NODE_env", process.env.NODE_env);
 		if (process.env.NODE_env === "test") {
-			// console.log("test");
+			console.log("test");
 			finalConfig = { ...finalConfig, ...testConfig };
 		}
 

@@ -74,8 +74,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 			parsedDate: dateFormatter(date),
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-			amountInINR: await convertCurrency(amount * 100, currency, date),
-			// amountInINR: amount * 100 * c80,
+			// amountInINR: await convertCurrency(amount * 100, currency, date),
+			amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -359,7 +359,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		// If duplication in db exist, return the errors
 		if (existingTransaction.length > 0) {
 			res.status(400).json({
-				message: `duplication in DB for some records.`,
+				message: "Duplication in DB for some records.",
 				existingTransaction: existingTransaction,
 			});
 			return;
@@ -399,8 +399,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 					parsedDate: dateFormatter(date),
 					description: truncatedDescription,
 					amount: amount * 100,
-					amountInINR: await convertCurrency(amount * 100, currency, date),
-					// amountInINR: amount * 100 * 80,
+					// amountInINR: await convertCurrency(amount * 100, currency, date),
+					amountInINR: amount * 100 * 80,
 					currency,
 					deleted: false, // Default flag for new transactions
 					createdAt: new Date(),
@@ -479,8 +479,8 @@ export const editTransaction = async (req: Request, res: Response) => {
 				transaction.currency = currency;
 			}
 			if (date) {
-				transaction.date=date;
-				transaction.parsedDate=new Date(dateFormatter(date));
+				transaction.date = date;
+				transaction.parsedDate = new Date(dateFormatter(date));
 			}
 
 			// Recalculate the amount in INR if amount, currency, or date changes
@@ -488,15 +488,15 @@ export const editTransaction = async (req: Request, res: Response) => {
 			const updatedCurrency = currency || transaction.currency;
 			const updatedDate = date || transaction.date;
 
-			transaction.amountInINR = await convertCurrency(
-				updatedAmount,
-				updatedCurrency,
-				updatedDate
-			);
+			// transaction.amountInINR = await convertCurrency(
+			// 	updatedAmount,
+			// 	updatedCurrency,
+			// 	updatedDate
+			// );
 
-			// transaction.amountInINR = amount
-			// 	? amount * 80 * 100
-			// 	: transaction.amountInINR;
+			transaction.amountInINR = amount
+				? amount * 80 * 100
+				: transaction.amountInINR;
 		}
 
 		transaction.updatedAt = new Date(); // Update timestamp
@@ -521,12 +521,12 @@ export const editTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-// Call this when you need to refresh the view
-async function refreshMaterializedView() {
-	const em = await getForkedEntityManager();
+// // Call this when you need to refresh the view
+// async function refreshMaterializedView() {
+// 	const em = await getForkedEntityManager();
 
-	// Refresh the materialized view first
-	await em
-		.getConnection()
-		.execute("REFRESH MATERIALIZED VIEW sorted_transactions_view");
-}
+// 	// Refresh the materialized view first
+// 	await em
+// 		.getConnection()
+// 		.execute("REFRESH MATERIALIZED VIEW sorted_transactions_view");
+// }
