@@ -99,7 +99,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while adding the transaction.",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 		});
 		return;
 	}
@@ -215,7 +215,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "Error fetching transactions",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 			data: {
 				totalCount: -1,
 				transactions: null,
@@ -260,7 +260,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "Error soft deleting transaction",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 		});
 	}
 };
@@ -300,7 +300,7 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while soft deleting all transactions.",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 		});
 	}
 };
@@ -330,24 +330,27 @@ export const processTransactions = async (req: Request, res: Response) => {
 		// console.log("parsedData", parsedData);
 
 		// Validate the parsed data
-		const { validationErrors, duplicationErrors, duplicates } =
+		const { validationErrors, DuplicationErrors, duplicates } =
 			validateCSVData(parsedData);
 		console.log(
 			"result from validateCSVData",
 			validationErrors,
-			duplicationErrors,
+			DuplicationErrors,
 			duplicates
 		);
 
 		// If validation errors exist, return the errors
 		if (
 			validationErrors.length > 0 ||
-			(duplicationErrors.length > 0 && skipCSVDuplicates === "false")
+			(DuplicationErrors.length > 0 && skipCSVDuplicates === "false")
 		) {
 			res.status(400).json({
 				message: `Validation failed for some records.`,
-				validationErrors: validationErrors,
-				duplicationErrors: duplicationErrors,
+				errors: {
+					validationErrors: validationErrors,
+					duplicationErrors: DuplicationErrors,
+					existingTransaction: [],
+				},
 			});
 			return;
 		}
@@ -359,8 +362,12 @@ export const processTransactions = async (req: Request, res: Response) => {
 		// If duplication in db exist, return the errors
 		if (existingTransaction.length > 0) {
 			res.status(400).json({
-				message: "Duplication in DB for some records.",
-				existingTransaction: existingTransaction,
+				message: "Duplication present in DB for some records.",
+				errors: {
+					validationErrors: [],
+					duplicationErrors: [],
+					existingTransaction: existingTransaction,
+				},
 			});
 			return;
 		}
@@ -427,7 +434,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 
 		res.status(500).json({
 			message: "An error occurred while processing the CSV file.",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 		});
 	}
 };
@@ -515,7 +522,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while editing the transaction.",
-			error: error instanceof Error ? error.message : error,
+			error: error,
 		});
 		return;
 	}

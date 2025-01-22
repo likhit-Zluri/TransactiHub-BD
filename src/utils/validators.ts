@@ -120,7 +120,7 @@ export const validateTransaction = (record: any): string[] => {
 
 // Function to check for duplicates in CSV data
 export const checkForDuplicatesInCSV = (parsedData: TransactionInput[]) => {
-	const DuplicationErrors: string[] = [];
+	const DuplicationErrors: { index: number; msg: string }[] = [];
 	const seenTransactions: Map<string, number> = new Map();
 	const duplicates: Number[] = [];
 
@@ -134,9 +134,12 @@ export const checkForDuplicatesInCSV = (parsedData: TransactionInput[]) => {
 
 			// Handle the possibility of `undefined`
 			duplicates.push(index + 1); // Add current index to duplicates
-			DuplicationErrors.push(
-				`Record at ${index + 1} is a duplicate of record at ${firstIndex + 1}`
-			);
+			DuplicationErrors.push({
+				index: index + 1,
+				msg: `Record at ${index + 1} is a duplicate of record at ${
+					firstIndex + 1
+				}`,
+			});
 		} else {
 			seenTransactions.set(transactionKey, index); // Add new transaction to the Map
 		}
@@ -152,40 +155,38 @@ export const checkForDuplicatesInCSV = (parsedData: TransactionInput[]) => {
 
 // Main CSV validation function that returns an array of errors
 export const validateCSVData = (parsedData: TransactionInput[]) => {
-	const validationErrors: string[] = [];
-	const duplicationErrors: string[] = [];
+	const validationErrors: { index: number; msg: string }[] = [];
 
 	// Validate each transaction record
 	parsedData.forEach((record, index) => {
 		const validationError = validateTransaction(record);
 
 		if (validationError.length > 0) {
-			validationErrors.push(
-				`Record at index ${
-					index + 1
-				} has the following errors: ${validationError.join(", ")}`
-			);
+			validationErrors.push({
+				index: index + 1,
+				msg: validationError.join(" "),
+			});
 		}
 	});
 
 	// Check for duplicates in CSV data
 	const { DuplicationErrors, duplicates } = checkForDuplicatesInCSV(parsedData);
-	if (DuplicationErrors.length > 0) {
-		duplicationErrors.push(...DuplicationErrors);
-	}
+	// if (DuplicationErrors.length > 0) {
+	// 	duplicationErrors={...DuplicationErrors;
+	// }
 	console.log(
 		"errors in validateCSVData",
 		validationErrors,
-		duplicationErrors,
+		DuplicationErrors,
 		duplicates
 	);
 
-	return { validationErrors, duplicationErrors, duplicates };
+	return { validationErrors, DuplicationErrors, duplicates };
 };
 
 export const checkForDuplicatesInDB = async (
 	parsedData: TransactionInput[]
-): Promise<string[]> => {
+) => {
 	const em = (await getORM()).em.fork();
 	const transactionRepo = em.getRepository(Transaction);
 
@@ -205,6 +206,8 @@ export const checkForDuplicatesInDB = async (
 		})),
 	});
 
+	if (existingTransactions.length === 0) return [];
+
 	// Find duplicates and return a string array with messages
 	return uniquePairs
 		.filter(({ date, description }) =>
@@ -212,8 +215,8 @@ export const checkForDuplicatesInDB = async (
 				(tx) => tx.date === date && tx.description === description
 			)
 		)
-		.map(
-			({ index }) =>
-				`Record at index ${index} has a duplication in the database.`
-		);
+		.map(({ index }) => ({
+			index,
+			msg: `Record at index ${index} has a duplication in the database.`,
+		}));
 };
