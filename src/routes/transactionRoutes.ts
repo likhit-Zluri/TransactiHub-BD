@@ -6,6 +6,7 @@ import {
 	deleteAllTransactions,
 	processTransactions,
 	editTransaction,
+	deleteMultipleTransactions,
 } from "../controllers/transactionController";
 
 // import multer from "multer";
@@ -31,6 +32,9 @@ router.delete("/transactions/:id", deleteTransaction);
 router.post("/transactions/upload", handleCSVUpload, processTransactions);
 
 // Delete all transactions
-router.delete("/transactions", deleteAllTransactions);
+// router.delete("/transactions", deleteAllTransactions);
+
+// Delete multiple transactions
+router.delete("/transactions", deleteMultipleTransactions);
 
 export default router;

@@ -187,7 +187,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 			console.log("first");
 
 			// No transactions found
-			res.status(204).json({
+			res.status(200).json({
 				success: true,
 				message: "No transactions found.",
 				data: {
@@ -302,6 +302,38 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 			message: "An error occurred while soft deleting all transactions.",
 			error: error,
 		});
+	}
+};
+
+export const deleteMultipleTransactions = async (
+	req: Request,
+	res: Response
+) => {
+	const { ids } = req.body;
+	console.log("req.body",req.body);
+	console.log("ids", ids);
+
+	if (!Array.isArray(ids) || ids.length === 0) {
+		res
+			.status(400)
+			.json({ message: "Invalid input. 'ids' must be a non-empty array." });
+		return;
+	}
+
+	try {
+		const em = await getForkedEntityManager();
+
+		// Delete transactions by IDs
+		await em.nativeDelete(Transaction, { id: { $in: ids } });
+
+		// em.
+
+		res.status(200).json({ message: "Transactions deleted successfully." });
+		return;
+	} catch (error) {
+		console.error("Error deleting transactions:", error);
+		res.status(500).json({ message: "Failed to delete transactions.", error });
+		return;
 	}
 };
 
