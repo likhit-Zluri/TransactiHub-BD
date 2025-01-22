@@ -201,7 +201,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		// Transactions fetched successfully
 		res.status(200).json({
 			success: true,
-			message: "Transactions fetched successfully.",
+			message: "Transactions fetched tsuccessfully.",
 			data: {
 				totalCount: totalCount,
 				transactions: transactions,
@@ -310,7 +310,7 @@ export const deleteMultipleTransactions = async (
 	res: Response
 ) => {
 	const { ids } = req.body;
-	console.log("req.body",req.body);
+	console.log("req.body", req.body);
 	console.log("ids", ids);
 
 	if (!Array.isArray(ids) || ids.length === 0) {
@@ -326,9 +326,9 @@ export const deleteMultipleTransactions = async (
 		// Delete transactions by IDs
 		await em.nativeDelete(Transaction, { id: { $in: ids } });
 
-		// em.
-
-		res.status(200).json({ message: "Transactions deleted successfully." });
+		res
+			.status(200)
+			.json({ success: true, message: "Transactions deleted successfully." });
 		return;
 	} catch (error) {
 		console.error("Error deleting transactions:", error);
