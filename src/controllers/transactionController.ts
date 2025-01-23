@@ -201,7 +201,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		// Transactions fetched successfully
 		res.status(200).json({
 			success: true,
-			message: "Transactions fetched tsuccessfully.",
+			message: "Transactions fetched successfully.",
 			data: {
 				totalCount: totalCount,
 				transactions: transactions,
