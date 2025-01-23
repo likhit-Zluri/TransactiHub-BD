@@ -214,7 +214,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		// Internal Server Error
 		res.status(500).json({
 			success: false,
-			message: "Error fetching transactions",
+			message: "Error in fetching transactions",
 			error: error,
 			data: {
 				totalCount: -1,
@@ -251,7 +251,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 
 		res.status(200).json({
 			success: true,
-			message: "Transaction soft deleted successfully",
+			message: "Transaction deleted successfully",
 		});
 		return;
 	} catch (error: unknown) {
@@ -259,7 +259,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 
 		res.status(500).json({
 			success: false,
-			message: "Error soft deleting transaction",
+			message: "Error in deleting transaction",
 			error: error,
 		});
 	}
@@ -268,6 +268,8 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 // Soft delete all transaction
 export const deleteAllTransactions = async (req: Request, res: Response) => {
 	try {
+		console.log("in deleteAllTransactions");
+
 		const em = await getForkedEntityManager();
 
 		// Fetch all active transactions (not deleted)
@@ -276,7 +278,7 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		if (transactions.length === 0) {
 			res.status(404).json({
 				success: false,
-				message: "No transactions found to soft delete.",
+				message: "No transactions found to delete.",
 			});
 			return;
 		}
@@ -292,14 +294,14 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 
 		res.status(200).json({
 			success: true,
-			message: "All transactions have been soft deleted successfully.",
+			message: "All transactions have been deleted successfully.",
 			deletedTransactionsCount: transactions.length,
 		});
 	} catch (error: unknown) {
 		console.error("Error soft deleting all transactions:", error);
 		res.status(500).json({
 			success: false,
-			message: "An error occurred while soft deleting all transactions.",
+			message: "Error in deleting all transactions.",
 			error: error,
 		});
 	}
@@ -332,7 +334,7 @@ export const deleteMultipleTransactions = async (
 		return;
 	} catch (error) {
 		console.error("Error deleting transactions:", error);
-		res.status(500).json({ message: "Failed to delete transactions.", error });
+		res.status(500).json({ message: "Error in deleting transactions.", error });
 		return;
 	}
 };
@@ -465,7 +467,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		console.error("Error while uploading and processing CSV:", error);
 
 		res.status(500).json({
-			message: "An error occurred while processing the CSV file.",
+			message: "Error in processing CSV file.",
 			error: error,
 		});
 	}
@@ -486,7 +488,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 		if (!transaction) {
 			res.status(404).json({
 				success: false,
-				message: `Transaction with ID ${id} not found.`,
+				message: `Transaction not found.`,
 			});
 			return;
 		}
@@ -553,19 +555,10 @@ export const editTransaction = async (req: Request, res: Response) => {
 		console.error("Error editing transaction:", error);
 		res.status(500).json({
 			success: false,
-			message: "An error occurred while editing the transaction.",
+			message: "Error in updating the transaction.",
 			error: error,
 		});
 		return;
 	}
 };
 
-// // Call this when you need to refresh the view
-// async function refreshMaterializedView() {
-// 	const em = await getForkedEntityManager();
-
-// 	// Refresh the materialized view first
-// 	await em
-// 		.getConnection()
-// 		.execute("REFRESH MATERIALIZED VIEW sorted_transactions_view");
-// }

@@ -32,7 +32,7 @@ router.delete("/transactions/:id", deleteTransaction);
 router.post("/transactions/upload", handleCSVUpload, processTransactions);
 
 // Delete all transactions
-// router.delete("/transactions", deleteAllTransactions);
+router.delete("/allTransactions", deleteAllTransactions);
 
 // Delete multiple transactions
 router.delete("/transactions", deleteMultipleTransactions);
