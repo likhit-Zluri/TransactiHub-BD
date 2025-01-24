@@ -15,7 +15,7 @@ const mikroOrmDefaultConfig: Options = defineConfig({
 	// password: process.env.DB_PASSWORD, // Database password
 	// host: process.env.DB_HOST, // Database host
 	// port: Number(process.env.DB_PORT), // Database port
-	debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
+	// debug: process.env.NODE_ENV !== "test", // Disable debug logs during tests
 	clientUrl: process.env.CLIENT_URL,
 	// clientUrl: process.env.TEST_DB_CLIENT_URL,
 	driverOptions: {
