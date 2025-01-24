@@ -552,13 +552,26 @@ export const editTransaction = async (req: Request, res: Response) => {
 		});
 		return;
 	} catch (error: unknown) {
-		console.error("Error editing transaction:", error);
+		if (error instanceof Error) {
+			// console.error("Error editing transaction:", error);
+			console.error("Error editing transaction:", error);
+			if (
+				error.message.includes(
+					'violates unique constraint "unique_transction_not_deleted"'
+				)
+			)
+				res.status(400).json({
+					success: false,
+					message:
+						"Duplicate transaction: combination of date and description already exists.",
+				});
+			return;
+		}
+
 		res.status(500).json({
 			success: false,
-			message: "Error in updating the transaction.",
-			error: error,
+			message: "Error in editing transaction",
 		});
-		return;
 	}
 };
 
