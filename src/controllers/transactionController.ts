@@ -562,3 +562,123 @@ export const editTransaction = async (req: Request, res: Response) => {
 	}
 };
 
+export const getPaginatedTransactions2 = async (
+	req: Request,
+	res: Response
+) => {
+	try {
+		// Get pagination and search parameters from the query string
+		const { page = 1, pageSize = 10, search = "" } = req.query;
+
+		// Convert page and pageSize to numbers
+		const pageNumber = parseInt(page as string, 10);
+		const pageSizeNumber = parseInt(pageSize as string, 10);
+
+		if (isNaN(pageNumber) || pageNumber < 1) {
+			if (isNaN(pageSizeNumber) || pageSizeNumber < 1) {
+				console.log("Invalid 'page' and 'limit'");
+				// Combined response when both pageNum and limitNum are invalid
+				res.status(400).json({
+					success: false,
+					message: "Invalid 'page' and 'limit'. Both must be positive numbers.",
+					data: {
+						totalCount: -1,
+						transactions: null,
+					},
+				});
+				return;
+			}
+			console.log("Invalid 'page'");
+			// Response when only pageNum is invalid
+			res.status(400).json({
+				success: false,
+				message: "Invalid 'page'. It must be a positive number.",
+				data: {
+					totalCount: -1,
+					transactions: null,
+				},
+			});
+			return;
+		}
+
+		if (isNaN(pageSizeNumber) || pageSizeNumber < 1) {
+			// Response when only limitNum is invalid
+			res.status(400).json({
+				success: false,
+				message: "Invalid 'limit'. It must be a positive number.",
+				data: {
+					totalCount: -1,
+					transactions: null,
+				},
+			});
+			return;
+		}
+
+		// Calculate offset for pagination
+		const offset = (pageNumber - 1) * pageSizeNumber;
+
+		// Build the search query
+		const searchConditions: any = {};
+
+		// Search by date if provided
+		// if (date) {
+		// 	console.log("date");
+		// 	searchConditions.parsedDate = date; // Assuming the date is stored in `YYYY-MM-DD` format
+		// }
+
+		// Search by description if provided
+		if (search) {
+			console.log("search");
+			searchConditions.description = {
+				$ilike: `%${search}%`, // Case-insensitive partial match
+			};
+		}
+		searchConditions.deleted = false;
+		// Get the EntityManager from MikroORM
+		const em = await getForkedEntityManager();
+
+		// Retrieve transactions with pagination and search filters
+		const [transactions, totalCount] = await em.findAndCount(
+			Transaction,
+			searchConditions,
+			{
+				orderBy: { parsedDate: "DESC" },
+				limit: Number(pageSizeNumber),
+				offset: offset,
+			}
+		);
+
+		if (totalCount === 0) {
+			console.log("first");
+
+			// No transactions found
+			res.status(200).json({
+				success: true,
+				message: "No transactions found.",
+				data: {
+					totalCount: 0,
+					transactions: [],
+				},
+			});
+			return;
+		}
+
+		// Transactions fetched successfully
+		res.status(200).json({
+			success: true,
+			message: `${totalCount} Transactions fetched successfully.`,
+			data: {
+				totalCount: totalCount,
+				transactions: transactions,
+			},
+		});
+		return;
+	} catch (error) {
+		console.error("Error fetching paginated transactions:", error);
+		res.status(500).json({
+			success: false,
+			message: "An error occurred while fetching transactions.",
+		});
+		return;
+	}
+};

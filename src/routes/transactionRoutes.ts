@@ -7,6 +7,7 @@ import {
 	processTransactions,
 	editTransaction,
 	deleteMultipleTransactions,
+	getPaginatedTransactions2,
 } from "../controllers/transactionController";
 
 // import multer from "multer";
@@ -23,8 +24,8 @@ router.post("/transactions", addTransaction);
 router.put("/transactions/:id", editTransaction);
 
 // Get all transactions
-router.get("/transactions", getPaginatedTransactions);
-
+router.get("/transactions", getPaginatedTransactions2);
+// router.get("/searchtransactions", getPaginatedTransactions2);
 // Delete a transaction
 router.delete("/transactions/:id", deleteTransaction);
 
