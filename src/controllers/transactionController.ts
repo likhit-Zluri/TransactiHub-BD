@@ -105,7 +105,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-// Get paginated transactions
+// Get all transactions
 export const getAllTransactions = async (req: Request, res: Response) => {
 	try {
 		const em = await getForkedEntityManager();
@@ -261,11 +261,7 @@ export const deleteMultipleTransactions = async (
 		const em = await getForkedEntityManager();
 
 		// Mark transactions as deleted by setting delete = true
-		await em.nativeUpdate(
-			Transaction,
-			{ id: { $in: ids } }, 
-			{ deleted: true } 
-		);
+		await em.nativeUpdate(Transaction, { id: { $in: ids } }, { deleted: true });
 
 		res
 			.status(200)
@@ -524,7 +520,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-// Get paginated transactions
+// // Get all transactions as pagination is handled on the frontend
 export const getPaginatedTransactions2 = async (
 	req: Request,
 	res: Response
@@ -607,8 +603,8 @@ export const getPaginatedTransactions2 = async (
 			searchConditions,
 			{
 				orderBy: { parsedDate: "DESC" },
-				limit: Number(pageSizeNumber),
-				offset: offset,
+				// limit: Number(pageSizeNumber),
+				// offset: offset,
 			}
 		);
 
