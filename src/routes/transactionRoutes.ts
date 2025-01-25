@@ -24,7 +24,7 @@ router.post("/transactions", addTransaction);
 router.put("/transactions/:id", editTransaction);
 
 // Get all transactions
-router.get("/alltransactions", getPaginatedTransactions2);
+router.get("/alltransactions", getAllTransactions);
 
 // Get paginated transactions
 router.get("/transactions", getPaginatedTransactions2);
