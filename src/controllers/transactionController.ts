@@ -106,86 +106,22 @@ export const addTransaction = async (req: Request, res: Response) => {
 };
 
 // Get paginated transactions
-export const getPaginatedTransactions = async (req: Request, res: Response) => {
-	const { page = 1, limit = 10 } = req.query;
-
+export const getAllTransactions = async (req: Request, res: Response) => {
 	try {
 		const em = await getForkedEntityManager();
-		console.log("page,limit", page, typeof page, limit, typeof limit);
-		// Validate page and limit inputs
-		const pageNum = Number(page);
-		const limitNum = Number(limit);
-		console.log(
-			"pageNum,limitNum",
-			pageNum,
-			typeof pageNum,
-			limitNum,
-			typeof limitNum
-		);
-		if (isNaN(pageNum) || pageNum < 1) {
-			if (isNaN(limitNum) || limitNum < 1) {
-				console.log("Invalid 'page' and 'limit'");
-				// Combined response when both pageNum and limitNum are invalid
-				res.status(400).json({
-					success: false,
-					message: "Invalid 'page' and 'limit'. Both must be positive numbers.",
-					data: {
-						totalCount: -1,
-						transactions: null,
-					},
-				});
-				return;
-			}
-			console.log("Invalid 'page'");
-			// Response when only pageNum is invalid
-			res.status(400).json({
-				success: false,
-				message: "Invalid 'page'. It must be a positive number.",
-				data: {
-					totalCount: -1,
-					transactions: null,
-				},
-			});
-			return;
-		}
-
-		if (isNaN(limitNum) || limitNum < 1) {
-			// Response when only limitNum is invalid
-			res.status(400).json({
-				success: false,
-				message: "Invalid 'limit'. It must be a positive number.",
-				data: {
-					totalCount: -1,
-					transactions: null,
-				},
-			});
-			return;
-		}
-
-		// await refreshMaterializedView();
-
-		const offset = (pageNum - 1) * limitNum;
-		// console.log("limit", limitNum, offset);
 
 		// Run queries in parallel using Promise.all
-		const [transactions, totalCount] = await Promise.all([
-			em.find(
-				Transaction,
-				{ deleted: false }, // dont get the deleted transaction
-				{
-					orderBy: { parsedDate: "DESC" },
-					limit: Number(limitNum),
-					offset: (Number(pageNum) - 1) * Number(limitNum),
-				}
-			),
-			em.count(Transaction, { deleted: false }),
-		]);
+		const [transactions, totalCount] = await em.findAndCount(
+			Transaction,
+			{ deleted: false }, // dont get the deleted transaction
+			{
+				orderBy: { parsedDate: "DESC" },
+			}
+		);
 
-		console.log("response from promise.all", transactions, totalCount);
+		console.log("getAllTransactions response", transactions, totalCount);
 
 		if (totalCount === 0) {
-			console.log("first");
-
 			// No transactions found
 			res.status(200).json({
 				success: true,
@@ -214,8 +150,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		// Internal Server Error
 		res.status(500).json({
 			success: false,
-			message: "Error in fetching transactions",
-			error: error,
+			message: "Error in fetching transactions.",
 			data: {
 				totalCount: -1,
 				transactions: null,
@@ -325,8 +260,12 @@ export const deleteMultipleTransactions = async (
 	try {
 		const em = await getForkedEntityManager();
 
-		// Delete transactions by IDs
-		await em.nativeDelete(Transaction, { id: { $in: ids } });
+		// Mark transactions as deleted by setting delete = true
+		await em.nativeUpdate(
+			Transaction,
+			{ id: { $in: ids } }, 
+			{ deleted: true } 
+		);
 
 		res
 			.status(200)
@@ -464,7 +403,17 @@ export const processTransactions = async (req: Request, res: Response) => {
 			data: transactionArray,
 		});
 	} catch (error: unknown) {
-		console.error("Error while uploading and processing CSV:", error);
+		console.error("Error in processing CSV file.", error);
+
+		if (error instanceof Error) {
+			console.error("Error in processing CSV file.", error.message);
+
+			res.status(400).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
 
 		res.status(500).json({
 			message: "Error in processing CSV file.",
@@ -554,7 +503,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 	} catch (error: unknown) {
 		if (error instanceof Error) {
 			// console.error("Error editing transaction:", error);
-			console.error("Error editing transaction:", error);
+			console.error("Error editing transaction:", error.message);
 			if (
 				error.message.includes(
 					'violates unique constraint "unique_transction_not_deleted"'
@@ -575,6 +524,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 	}
 };
 
+// Get paginated transactions
 export const getPaginatedTransactions2 = async (
 	req: Request,
 	res: Response
@@ -647,6 +597,7 @@ export const getPaginatedTransactions2 = async (
 			};
 		}
 		searchConditions.deleted = false;
+
 		// Get the EntityManager from MikroORM
 		const em = await getForkedEntityManager();
 
@@ -662,8 +613,6 @@ export const getPaginatedTransactions2 = async (
 		);
 
 		if (totalCount === 0) {
-			console.log("first");
-
 			// No transactions found
 			res.status(200).json({
 				success: true,
@@ -679,7 +628,7 @@ export const getPaginatedTransactions2 = async (
 		// Transactions fetched successfully
 		res.status(200).json({
 			success: true,
-			message: `${totalCount} Transactions fetched successfully.`,
+			message: "Transactions fetched successfully.",
 			data: {
 				totalCount: totalCount,
 				transactions: transactions,
@@ -690,7 +639,11 @@ export const getPaginatedTransactions2 = async (
 		console.error("Error fetching paginated transactions:", error);
 		res.status(500).json({
 			success: false,
-			message: "An error occurred while fetching transactions.",
+			message: "Error in fetching transactions.",
+			data: {
+				totalCount: -1,
+				transactions: null,
+			},
 		});
 		return;
 	}

@@ -81,6 +81,43 @@ export const validateTransaction = (record: any): string[] => {
 			validationErrors.push(
 				`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
 			);
+		} else {
+			const [day, month, year] = date.split("-").map(Number);
+
+			// Validate year
+			if (year < 1900 || year > new Date().getFullYear()) {
+				validationErrors.push(
+					`Invalid 'Year': ${year}. Year must be between 1900 and the current year.`
+				);
+			}
+
+			// Validate month
+			if (month < 1 || month > 12) {
+				validationErrors.push(
+					`Invalid 'Month': ${month}. Month must be between 1 and 12.`
+				);
+			}
+
+			// Validate day
+			const daysInMonth = new Date(year, month, 0).getDate();
+			if (day < 1 || day > daysInMonth) {
+				validationErrors.push(
+					`Invalid 'Day': ${day}. Day must be between 1 and ${daysInMonth} for the given month.`
+				);
+			}
+
+			if (validationErrors.length === 0) {
+				const selectedDate = new Date(year, month - 1, day); // Month is 0-based
+				const today = new Date();
+				today.setHours(0, 0, 0, 0); // Normalize today’s date
+
+				// Check for future dates
+				if (selectedDate > today) {
+					validationErrors.push(
+						`Invalid 'Date': ${date}. Date cannot be in the future.`
+					);
+				}
+			}
 		}
 	}
 
@@ -102,6 +139,10 @@ export const validateTransaction = (record: any): string[] => {
 		if (description && typeof description !== "string") {
 			validationErrors.push(
 				`Invalid 'Description' type: ${typeof description}. Expected type: string.`
+			);
+		} else if (description.length > 255) {
+			validationErrors.push(
+				`Invalid 'Description': ${description}. Description cannot exceed 255 characters.`
 			);
 		}
 	}

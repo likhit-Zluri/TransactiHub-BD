@@ -1,7 +1,7 @@
 import express from "express";
 import {
 	addTransaction,
-	getPaginatedTransactions,
+	getAllTransactions,
 	deleteTransaction,
 	deleteAllTransactions,
 	processTransactions,
@@ -24,8 +24,12 @@ router.post("/transactions", addTransaction);
 router.put("/transactions/:id", editTransaction);
 
 // Get all transactions
+router.get("/alltransactions", getPaginatedTransactions2);
+
+// Get paginated transactions
 router.get("/transactions", getPaginatedTransactions2);
 // router.get("/searchtransactions", getPaginatedTransactions2);
+
 // Delete a transaction
 router.delete("/transactions/:id", deleteTransaction);
 
