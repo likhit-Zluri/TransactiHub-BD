@@ -18,8 +18,8 @@ import { dateFormatter } from "../utils/dataFormatter";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
-	const { date, description, amount, currency } = req.body;
-
+	const { date, description_notTrimmed, amount, currency } = req.body;
+	const description = description_notTrimmed?.trim();
 	// Checking validations and returning corresponding errors
 	const validationErrors = validateTransaction({
 		date,
@@ -355,12 +355,15 @@ export const processTransactions = async (req: Request, res: Response) => {
 				}
 
 				const { date, description, amount, currency } = record;
+				const trimmedDescription = description?.trim();
 
 				// console.log("record", record);
 
 				// Ensure description does not exceed 255 characters
 				const truncatedDescription: string =
-					description.length > 255 ? description.slice(0, 255) : description;
+					trimmedDescription.length > 255
+						? trimmedDescription.slice(0, 255)
+						: trimmedDescription;
 
 				// // Convert date from dd-mm-yyyy to yyyy-mm-dd
 				// const parseDate = (dateString: string): string => {
@@ -422,7 +425,9 @@ export const processTransactions = async (req: Request, res: Response) => {
 // Edit a transaction
 export const editTransaction = async (req: Request, res: Response) => {
 	const { id } = req.params; // Transaction ID from the request URL
-	const { date, description, amount, currency } = req.body; // New data
+	const { date, description_notTrimmed, amount, currency } = req.body; // New data
+	const description = description_notTrimmed?.trim();
+
 	console.log("body", id, date, description, amount, currency);
 
 	try {
@@ -522,10 +527,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 };
 
 // // Get all transactions as pagination is handled on the frontend
-export const getPaginatedTransactions2 = async (
-	req: Request,
-	res: Response
-) => {
+export const getPaginatedTransactions = async (req: Request, res: Response) => {
 	try {
 		// Get pagination and search parameters from the query string
 		const { page = 1, limit = 10, search = "" } = req.query;
