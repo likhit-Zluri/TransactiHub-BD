@@ -317,7 +317,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 				message: `Validation failed for some records.`,
 				errors: {
 					validationErrors: validationErrors,
-					duplicationErrors: DuplicationErrors,
+					duplicationErrors:
+						skipCSVDuplicates === "true" ? [] : DuplicationErrors,
 					existingTransaction: [],
 				},
 			});
@@ -527,11 +528,13 @@ export const getPaginatedTransactions2 = async (
 ) => {
 	try {
 		// Get pagination and search parameters from the query string
-		const { page = 1, pageSize = 10, search = "" } = req.query;
+		const { page = 1, limit = 10, search = "" } = req.query;
 
-		// Convert page and pageSize to numbers
+		// Convert page and limit to numbers
 		const pageNumber = parseInt(page as string, 10);
-		const pageSizeNumber = parseInt(pageSize as string, 10);
+		const pageSizeNumber = parseInt(limit as string, 10);
+
+		console.log("getPaginatedTransactions2", pageNumber, pageSizeNumber);
 
 		if (isNaN(pageNumber) || pageNumber < 1) {
 			if (isNaN(pageSizeNumber) || pageSizeNumber < 1) {
@@ -603,8 +606,8 @@ export const getPaginatedTransactions2 = async (
 			searchConditions,
 			{
 				orderBy: { parsedDate: "DESC" },
-				// limit: Number(pageSizeNumber),
-				// offset: offset,
+				limit: Number(pageSizeNumber),
+				offset: offset,
 			}
 		);
 
