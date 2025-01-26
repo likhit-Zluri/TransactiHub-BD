@@ -33,6 +33,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		res.status(400).json({
 			success: false,
 			message: validationErrors.join(" "),
+			data: { transaction: [] },
 		});
 		return;
 	}
@@ -62,6 +63,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 				success: false,
 				message:
 					"A transaction with the same date and description already exists.",
+				data: { transaction: [] },
 			});
 			return;
 		}
@@ -75,8 +77,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 			parsedDate: dateFormatter(date),
 			amount: amount * 100, // As we have a precision of two
 			// to do update type as float in db but it would return a string from db
-			// amountInINR: await convertCurrency(amount * 100, currency, date),
-			amountInINR: amount * 100 * 80,
+			amountInINR: await convertCurrency(amount * 100, currency, date),
+			// amountInINR: amount * 100 * 80,
 			currency,
 			deleted: false,
 			createdAt: new Date(),
@@ -97,10 +99,18 @@ export const addTransaction = async (req: Request, res: Response) => {
 	} catch (error: unknown) {
 		console.error("Error adding transaction:", error);
 
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
+
 		res.status(500).json({
 			success: false,
 			message: "An error occurred while adding the transaction.",
-			error: error,
+			data: { transaction: [] },
 		});
 		return;
 	}
@@ -148,13 +158,20 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 	} catch (error: unknown) {
 		console.error("Error fetching transactions", error);
 
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
 		// Internal Server Error
 		res.status(500).json({
 			success: false,
-			message: "Error in fetching transactions.",
+			message: "An error occurred while fetching all transactions.",
 			data: {
 				totalCount: -1,
-				transactions: null,
+				transactions: [],
 			},
 		});
 		return;
@@ -193,9 +210,17 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 	} catch (error: unknown) {
 		console.error("Error soft deleting transaction:", error);
 
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
+
 		res.status(500).json({
 			success: false,
-			message: "Error in deleting transaction",
+			message: "An error occurred while deleting the transaction.",
 			error: error,
 		});
 	}
@@ -235,9 +260,18 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		});
 	} catch (error: unknown) {
 		console.error("Error soft deleting all transactions:", error);
+
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
+
 		res.status(500).json({
 			success: false,
-			message: "Error in deleting all transactions.",
+			message: "An error occurred while deleting all transactions.",
 			error: error,
 		});
 	}
@@ -270,7 +304,18 @@ export const deleteMultipleTransactions = async (
 		return;
 	} catch (error) {
 		console.error("Error deleting transactions:", error);
-		res.status(500).json({ message: "Error in deleting transactions.", error });
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
+
+		res.status(500).json({
+			message: "An error occurred while deleting transactions.",
+			error,
+		});
 		return;
 	}
 };
@@ -380,8 +425,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 					parsedDate: dateFormatter(date),
 					description: truncatedDescription,
 					amount: amount * 100,
-					// amountInINR: await convertCurrency(amount * 100, currency, date),
-					amountInINR: amount * 100 * 80,
+					amountInINR: await convertCurrency(amount * 100, currency, date),
+					// amountInINR: amount * 100 * 80,
 					currency,
 					deleted: false, // Default flag for new transactions
 					createdAt: new Date(),
@@ -407,9 +452,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		console.error("Error in processing CSV file.", error);
 
 		if (error instanceof Error) {
-			console.error("Error in processing CSV file.", error.message);
-
-			res.status(400).json({
+			res.status(500).json({
 				success: false,
 				message: error.message,
 			});
@@ -417,7 +460,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 		}
 
 		res.status(500).json({
-			message: "Error in processing CSV file.",
+			message: "An error occurred while processing the CSV file.",
 			error: error,
 		});
 	}
@@ -522,7 +565,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 
 		res.status(500).json({
 			success: false,
-			message: "Error in editing transaction",
+			message: "An error occurred while editing the transaction.",
 		});
 	}
 };
@@ -639,9 +682,18 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		return;
 	} catch (error) {
 		console.error("Error fetching paginated transactions:", error);
+
+		if (error instanceof Error) {
+			res.status(500).json({
+				success: false,
+				message: error.message,
+			});
+			return;
+		}
+
 		res.status(500).json({
 			success: false,
-			message: "Error in fetching transactions.",
+			message: "An error occurred while fetching paginated transactions.",
 			data: {
 				totalCount: -1,
 				transactions: null,

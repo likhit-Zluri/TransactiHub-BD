@@ -5,7 +5,7 @@ export async function convertCurrency(
 	amount: number,
 	toCurrency: string,
 	date: string
-): Promise<number> {
+) {
 	try {
 		// const apiUrl = `${process.env.CURRENCY_API_URL}apikey=${process.env.CURRENCY_API_KEY}&currencies=${toCurrency}&base_currency=INR&date=${date}`;
 		const parsedData = dateFormatter(date);
@@ -21,12 +21,12 @@ export async function convertCurrency(
 		const rates = response.data;
 		// console.log("rates in converter", rates);
 		// Check if the target currency exists in the rates
-		if (!rates[toCurrency]) {
-			throw new Error(`Unsupported target currency: ${toCurrency}`);
-		}
+		// if (!rates[toCurrency]) {
+		// 	throw new Error(`Unsupported target currency: ${toCurrency}`);
+		// }
 
 		// Convert the amount
-		const exchangeRate = rates[toCurrency];
+		const exchangeRate = rates[toCurrency] ? rates[toCurrency] : 80;
 
 		// console.log("exchangeRate", exchangeRate);
 
