@@ -20,6 +20,7 @@ import { dateFormatter } from "../utils/dataFormatter";
 export const addTransaction = async (req: Request, res: Response) => {
 	const { date, description_notTrimmed, amount, currency } = req.body;
 	const description = description_notTrimmed?.trim();
+
 	// Checking validations and returning corresponding errors
 	const validationErrors = validateTransaction({
 		date,
