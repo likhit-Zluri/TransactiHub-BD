@@ -18,8 +18,8 @@ import { dateFormatter } from "../utils/dataFormatter";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
-	const { date, description_notTrimmed, amount, currency } = req.body;
-	const description = description_notTrimmed?.trim();
+	let { date, description, amount, currency } = req.body;
+	description = description?.trim();
 
 	// Checking validations and returning corresponding errors
 	const validationErrors = validateTransaction({
@@ -426,8 +426,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 // Edit a transaction
 export const editTransaction = async (req: Request, res: Response) => {
 	const { id } = req.params; // Transaction ID from the request URL
-	const { date, description_notTrimmed, amount, currency } = req.body; // New data
-	const description = description_notTrimmed?.trim();
+	let { date, description, amount, currency } = req.body; // New data
+	description = description?.trim();
 
 	console.log("body", id, date, description, amount, currency);
 
