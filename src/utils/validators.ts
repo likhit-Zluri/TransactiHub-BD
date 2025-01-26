@@ -1,4 +1,3 @@
-import e from "express";
 import { getORM } from "../config/mikro-orm.config";
 import { Transaction } from "../entities/Transaction";
 
@@ -72,88 +71,80 @@ export const validateTransaction = (record: any): string[] => {
 	}
 
 	// Validate the date format (dd-mm-yyyy)
-	if (date !== undefined) {
-		if (date && typeof date !== "string") {
+	if (date && typeof date !== "string") {
+		validationErrors.push(
+			`Invalid 'Date' type: ${typeof date}. Expected type: string.`
+		);
+	} else if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+		validationErrors.push(
+			`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
+		);
+	} else {
+		const [day, month, year] = date.split("-").map(Number);
+
+		// Validate year
+		if (year < 1900 || year > new Date().getFullYear()) {
 			validationErrors.push(
-				`Invalid 'Date' type: ${typeof date}. Expected type: string.`
+				`Invalid 'Year': ${year}. Year must be between 1900 and the current year.`
 			);
-		} else if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+		}
+
+		// Validate month
+		if (month < 1 || month > 12) {
 			validationErrors.push(
-				`Invalid 'Date' format: ${date}. Expected format: dd-mm-yyyy.`
+				`Invalid 'Month': ${month}. Month must be between 1 and 12.`
 			);
-		} else {
-			const [day, month, year] = date.split("-").map(Number);
+		}
 
-			// Validate year
-			if (year < 1900 || year > new Date().getFullYear()) {
+		// Validate day
+		const daysInMonth = new Date(year, month, 0).getDate();
+		if (day < 1 || day > daysInMonth) {
+			validationErrors.push(
+				`Invalid 'Day': ${day}. Day must be between 1 and ${daysInMonth} for the given month.`
+			);
+		}
+
+		if (validationErrors.length === 0) {
+			const selectedDate = new Date(year, month - 1, day); // Month is 0-based
+			const today = new Date();
+			today.setHours(0, 0, 0, 0); // Normalize today’s date
+
+			// Check for future dates
+			if (selectedDate > today) {
 				validationErrors.push(
-					`Invalid 'Year': ${year}. Year must be between 1900 and the current year.`
+					`Invalid 'Date': ${date}. Date cannot be in the future.`
 				);
-			}
-
-			// Validate month
-			if (month < 1 || month > 12) {
-				validationErrors.push(
-					`Invalid 'Month': ${month}. Month must be between 1 and 12.`
-				);
-			}
-
-			// Validate day
-			const daysInMonth = new Date(year, month, 0).getDate();
-			if (day < 1 || day > daysInMonth) {
-				validationErrors.push(
-					`Invalid 'Day': ${day}. Day must be between 1 and ${daysInMonth} for the given month.`
-				);
-			}
-
-			if (validationErrors.length === 0) {
-				const selectedDate = new Date(year, month - 1, day); // Month is 0-based
-				const today = new Date();
-				today.setHours(0, 0, 0, 0); // Normalize today’s date
-
-				// Check for future dates
-				if (selectedDate > today) {
-					validationErrors.push(
-						`Invalid 'Date': ${date}. Date cannot be in the future.`
-					);
-				}
 			}
 		}
 	}
 
 	// Validate that the amount is a positive number
-	if (amount !== undefined) {
-		if (amount && typeof amount !== "number") {
-			validationErrors.push(
-				`Invalid 'Amount' type: ${typeof amount}. Expected format: number.`
-			);
-		} else if (isNaN(Number(amount)) || Number(amount) <= 0) {
-			validationErrors.push(
-				`Invalid 'Amount': ${amount}. Must be a positive number.`
-			);
-		}
+	if (amount && typeof amount !== "number") {
+		validationErrors.push(
+			`Invalid 'Amount' type: ${typeof amount}. Expected format: number.`
+		);
+	} else if (isNaN(Number(amount)) || Number(amount) <= 0) {
+		validationErrors.push(
+			`Invalid 'Amount': ${amount}. Must be a positive number.`
+		);
 	}
 
 	// Validate that the description is a string
-	if (description !== undefined) {
-		if (description && typeof description !== "string") {
-			validationErrors.push(
-				`Invalid 'Description' type: ${typeof description}. Expected type: string.`
-			);
-		} else if (description.length > 255) {
-			validationErrors.push(
-				`Invalid 'Description': ${description}. Description cannot exceed 255 characters.`
-			);
-		}
+	if (description && typeof description !== "string") {
+		validationErrors.push(
+			`Invalid 'Description' type: ${typeof description}. Expected type: string.`
+		);
+	} else if (description.length > 255) {
+		validationErrors.push(
+			`Invalid 'Description': ${description}. Description cannot exceed 255 characters.`
+		);
 	}
 
 	// Validate the currency (assume it's a 3-letter ISO code)
-	if (currency !== undefined) {
-		if (currency && !/^[A-Z]{3}$/.test(currency)) {
-			validationErrors.push(
-				`Invalid 'Currency': ${currency}. Expected format: 3-letter ISO code.`
-			);
-		}
+	if (currency && !/^[A-Z]{3}$/.test(currency)) {
+		validationErrors.push(
+			`Invalid 'Currency': ${currency}. Expected format: 3-letter ISO code.`
+		);
 	}
 	console.log("validationErrors in validateTransaction", validationErrors);
 	return validationErrors;
