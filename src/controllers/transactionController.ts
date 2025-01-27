@@ -16,11 +16,13 @@ import { convertCurrency } from "../utils/currencyConverter";
 import { getForkedEntityManager } from "../utils/entityManager";
 import { dateFormatter } from "../utils/dataFormatter";
 import {
+	addMultipleTransaction,
 	addSingleTransaction,
 	deleteAllNonDeletedTransactions,
 	deleteMultipleNonDeletedTransactions,
 	deleteSingleTransaction,
-	findAndCountAllNonDeletedTransactions,
+	editSingleTransaction,
+	findAndCountPaginatedNonDeletedTransactions,
 	findSingleTransactionByDateDesc,
 	findSingleTransactionByID,
 } from "../Database/dataBaseAccessLayer";
@@ -93,58 +95,58 @@ export const addTransaction = async (req: Request, res: Response) => {
 };
 
 // Get all transactions
-export const getAllTransactions = async (req: Request, res: Response) => {
-	try {
-		const { transactions, totalCount } =
-			await findAndCountAllNonDeletedTransactions();
+// export const getAllTransactions = async (req: Request, res: Response) => {
+// 	try {
+// 		const { transactions, totalCount } =
+// 			await findAndCountAllNonDeletedTransactions();
 
-		console.log("getAllTransactions response", transactions, totalCount);
+// 		console.log("getAllTransactions response", transactions, totalCount);
 
-		if (totalCount === 0) {
-			// No transactions found
-			res.status(200).json({
-				success: true,
-				message: "No transactions found.",
-				data: {
-					totalCount: 0,
-					transactions: [],
-				},
-			});
-			return;
-		}
+// 		if (totalCount === 0) {
+// 			// No transactions found
+// 			res.status(200).json({
+// 				success: true,
+// 				message: "No transactions found.",
+// 				data: {
+// 					totalCount: 0,
+// 					transactions: [],
+// 				},
+// 			});
+// 			return;
+// 		}
 
-		// Transactions fetched successfully
-		res.status(200).json({
-			success: true,
-			message: "Transactions fetched successfully.",
-			data: {
-				totalCount: totalCount,
-				transactions: transactions,
-			},
-		});
-		return;
-	} catch (error: unknown) {
-		console.error("Error in getAllTransactions", error);
+// 		// Transactions fetched successfully
+// 		res.status(200).json({
+// 			success: true,
+// 			message: "Transactions fetched successfully.",
+// 			data: {
+// 				totalCount: totalCount,
+// 				transactions: transactions,
+// 			},
+// 		});
+// 		return;
+// 	} catch (error: unknown) {
+// 		console.error("Error in getAllTransactions", error);
 
-		if (error instanceof Error) {
-			res.status(500).json({
-				success: false,
-				message: error.message,
-			});
-			return;
-		}
-		// Internal Server Error
-		res.status(500).json({
-			success: false,
-			message: "An error occurred while fetching all transactions.",
-			data: {
-				totalCount: -1,
-				transactions: [],
-			},
-		});
-		return;
-	}
-};
+// 		if (error instanceof Error) {
+// 			res.status(500).json({
+// 				success: false,
+// 				message: error.message,
+// 			});
+// 			return;
+// 		}
+// 		// Internal Server Error
+// 		res.status(500).json({
+// 			success: false,
+// 			message: "An error occurred while fetching all transactions.",
+// 			data: {
+// 				totalCount: -1,
+// 				transactions: [],
+// 			},
+// 		});
+// 		return;
+// 	}
+// };
 
 // Soft delete a transaction
 export const deleteTransaction = async (req: Request, res: Response) => {
@@ -213,12 +215,12 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 	}
 };
 
+// Soft delete multiple transaction
 export const deleteMultipleTransactions = async (
 	req: Request,
 	res: Response
 ) => {
 	const { ids } = req.body;
-	console.log("req.body", req.body);
 	console.log("ids", ids);
 
 	if (!Array.isArray(ids) || ids.length === 0) {
@@ -321,57 +323,17 @@ export const processTransactions = async (req: Request, res: Response) => {
 			return;
 		}
 
-		// Prepare an array to store valid transaction data
-		const transactionArray: TransactionInput[] = [];
-
-		const em = await getForkedEntityManager();
-
-		// Process valid records for insertion
-		await Promise.all(
-			parsedData.map(async (record, index) => {
-				if (duplicates.includes(index + 1)) {
-					return;
-				}
-
-				const { date, description, amount, currency } = record;
-
-				// console.log("record", record);
-
-				// // Convert date from dd-mm-yyyy to yyyy-mm-dd
-				// const parseDate = (dateString: string): string => {
-				// 	const [day, month, year] = dateString.split("-");
-				// 	return `${year}-${month}-${day}`;
-				// };
-
-				// const parsedDate = parseDate(date);
-
-				// Prepare the transaction data for insertion
-				const transaction = em.create(Transaction, {
-					date: date,
-					parsedDate: dateFormatter(date),
-					description: description,
-					amount: amount * 100,
-					amountInINR: await convertCurrency(amount * 100, currency, date),
-					// amountInINR: amount * 100 * 80,
-					currency,
-					deleted: false, // Default flag for new transactions
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
-
-				transactionArray.push(transaction);
-			})
+		const transactionArray = await addMultipleTransaction(
+			parsedData,
+			duplicates
 		);
-
-		// console.log("transactionArray", transactionArray);
-
-		// Bulk insert the transactions
-		await em.persistAndFlush(transactionArray);
 
 		// Send response with the count of successful transactions
 		res.status(201).json({
-			message: `${transactionArray.length} transactions added successfully.`,
-			successCount: transactionArray.length,
+			message: `${
+				transactionArray?.length ?? 0
+			} transactions added successfully.`,
+			successCount: transactionArray?.length ?? 0,
 			data: transactionArray,
 		});
 	} catch (error: unknown) {
@@ -394,26 +356,13 @@ export const processTransactions = async (req: Request, res: Response) => {
 
 // Edit a transaction
 export const editTransaction = async (req: Request, res: Response) => {
-	const { id } = req.params; // Transaction ID from the request URL
+	const { id } = req.params as { id: UUID }; // Transaction ID from the request URL
 	let { date, description, amount, currency } = req.body; // New data
 	description = description?.trim();
 
 	console.log("body", id, date, description, amount, currency);
 
 	try {
-		const em = await getForkedEntityManager();
-
-		// Find the transaction by ID
-		const transaction = await em.findOne(Transaction, { id, deleted: false });
-
-		if (!transaction) {
-			res.status(404).json({
-				success: false,
-				message: `Transaction not found.`,
-			});
-			return;
-		}
-
 		// Validate new data
 		const validationErrors = validateTransaction({
 			date,
@@ -430,46 +379,29 @@ export const editTransaction = async (req: Request, res: Response) => {
 			return;
 		}
 
-		// Update transaction fields only if they are provided
+		// Find the transaction by ID
+		const transaction = await findSingleTransactionByID(id);
 
-		if (description) transaction.description = description;
-		if (amount || currency || date) {
-			if (amount) {
-				transaction.amount = amount * 100; // Update with precision
-			}
-			if (currency) {
-				transaction.currency = currency;
-			}
-			if (date) {
-				transaction.date = date;
-				transaction.parsedDate = new Date(dateFormatter(date));
-			}
-
-			// Recalculate the amount in INR if amount, currency, or date changes
-			const updatedAmount = amount ? amount * 100 : transaction.amount;
-			const updatedCurrency = currency || transaction.currency;
-			const updatedDate = date || transaction.date;
-
-			// transaction.amountInINR = await convertCurrency(
-			// 	updatedAmount,
-			// 	updatedCurrency,
-			// 	updatedDate
-			// );
-
-			transaction.amountInINR = amount
-				? amount * 80 * 100
-				: transaction.amountInINR;
+		if (!transaction) {
+			res.status(404).json({
+				success: false,
+				message: `Transaction not found.`,
+			});
+			return;
 		}
 
-		transaction.updatedAt = new Date(); // Update timestamp
-
-		// Persist changes
-		await em.persistAndFlush(transaction);
+		const editedTransaction = await editSingleTransaction(
+			id,
+			date,
+			description,
+			amount,
+			currency
+		);
 
 		res.status(200).json({
 			success: true,
 			message: "Transaction updated successfully.",
-			data: { transaction },
+			data: { editedTransaction },
 		});
 		return;
 	} catch (error: unknown) {
@@ -480,13 +412,14 @@ export const editTransaction = async (req: Request, res: Response) => {
 				error.message.includes(
 					'violates unique constraint "unique_transction_not_deleted"'
 				)
-			)
+			) {
 				res.status(400).json({
 					success: false,
 					message:
 						"Duplicate transaction: combination of date and description already exists.",
 				});
-			return;
+				return;
+			}
 		}
 
 		res.status(500).json({
@@ -496,7 +429,7 @@ export const editTransaction = async (req: Request, res: Response) => {
 	}
 };
 
-// // Get all transactions as pagination is handled on the frontend
+// Get all transactions as pagination is handled on the frontend
 export const getPaginatedTransactions = async (req: Request, res: Response) => {
 	try {
 		// Get pagination and search parameters from the query string
@@ -506,7 +439,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		const pageNumber = parseInt(page as string, 10);
 		const pageSizeNumber = parseInt(limit as string, 10);
 
-		console.log("getPaginatedTransactions2", pageNumber, pageSizeNumber);
+		console.log("getPaginatedTransactions", pageNumber, pageSizeNumber);
 
 		if (isNaN(pageNumber) || pageNumber < 1) {
 			if (isNaN(pageSizeNumber) || pageSizeNumber < 1) {
@@ -552,7 +485,7 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 		const offset = (pageNumber - 1) * pageSizeNumber;
 
 		// Build the search query
-		const searchConditions: any = {};
+		const searchConditions: Record<string, any> = {};
 
 		// Search by date if provided
 		// if (date) {
@@ -567,21 +500,28 @@ export const getPaginatedTransactions = async (req: Request, res: Response) => {
 				$ilike: `%${search}%`, // Case-insensitive partial match
 			};
 		}
-		searchConditions.deleted = false;
+		// searchConditions.deleted = false;
 
-		// Get the EntityManager from MikroORM
-		const em = await getForkedEntityManager();
+		const { transactions, totalCount } =
+			await findAndCountPaginatedNonDeletedTransactions(
+				searchConditions,
+				offset,
+				pageSizeNumber
+			);
 
-		// Retrieve transactions with pagination and search filters
-		const [transactions, totalCount] = await em.findAndCount(
-			Transaction,
-			searchConditions,
-			{
-				orderBy: { parsedDate: "DESC" },
-				limit: Number(pageSizeNumber),
-				offset: offset,
-			}
-		);
+		// // Get the EntityManager from MikroORM
+		// const em = await getForkedEntityManager();
+
+		// // Retrieve transactions with pagination and search filters
+		// const [transactions, totalCount] = await em.findAndCount(
+		// 	Transaction,
+		// 	searchConditions,
+		// 	{
+		// 		orderBy: { parsedDate: "DESC" },
+		// 		limit: Number(pageSizeNumber),
+		// 		offset: offset,
+		// 	}
+		// );
 
 		if (totalCount === 0) {
 			// No transactions found
