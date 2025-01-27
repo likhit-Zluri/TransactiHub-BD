@@ -129,6 +129,22 @@ export const validateTransaction = (record: any): string[] => {
 		);
 	}
 
+	const specialChars = [
+		"\u00A0", // non-breaking space
+		"\u200B", // zero-width space
+		"\u200C", // zero-width non-joiner
+		"\u200D", // zero-width joiner
+		"\uFEFF", // byte order mark
+		"\u2013", // en dash
+		"\u2014", // em dash
+		"\u201C", // left double quotation mark
+		"\u201D", // right double quotation mark
+		"\u2212", // minus sign
+		"\u00E4", // latin small letter a with diaeresis
+		"\uFFFD", // replacement character
+		"\u2217", // asterisk operator
+	];
+
 	// Validate that the description is a string
 	if (description && typeof description !== "string") {
 		validationErrors.push(
@@ -137,6 +153,11 @@ export const validateTransaction = (record: any): string[] => {
 	} else if (description.length > 255) {
 		validationErrors.push(
 			`Invalid 'Description': ${description}. Description cannot exceed 255 characters.`
+		);
+	} else if (specialChars.some((char) => description.includes(char))) {
+		const invalidChar = specialChars.find((char) => description.includes(char));
+		validationErrors.push(
+			`Invalid 'Description'. Contains special character: '${invalidChar}'.`
 		);
 	}
 

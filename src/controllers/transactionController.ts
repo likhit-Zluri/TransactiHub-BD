@@ -15,6 +15,7 @@ import { convertCurrency } from "../utils/currencyConverter";
 
 import { getForkedEntityManager } from "../utils/entityManager";
 import { dateFormatter } from "../utils/dataFormatter";
+import { addSingleTransactionToDB } from "../Database/dataBaseAccessLayer";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
@@ -71,21 +72,31 @@ export const addTransaction = async (req: Request, res: Response) => {
 		console.log("Got here");
 
 		// Create and populate a new transaction entry
-		const transaction = em.create(Transaction, {
-			date: date,
-			description,
-			parsedDate: dateFormatter(date),
-			amount: amount * 100, // As we have a precision of two
-			// to do update type as float in db but it would return a string from db
-			amountInINR: await convertCurrency(amount * 100, currency, date),
-			// amountInINR: amount * 100 * 80,
-			currency,
-			deleted: false,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		});
+		// const transaction = em.create(Transaction, {
+		// 	date: date,
+		// 	description,
+		// 	parsedDate: dateFormatter(date),
+		// 	amount: amount * 100, // As we have a precision of two
+		// 	// to do update type as float in db but it would return a string from db
+		// 	amountInINR: await convertCurrency(amount * 100, currency, date),
+		// 	// amountInINR: amount * 100 * 80,
+		// 	currency,
+		// 	deleted: false,
+		// 	createdAt: new Date(),
+		// 	updatedAt: new Date(),
+		// });
 
-		console.log("Creatingdata");
+		// console.log("Creatingdata");
+
+		// // Save the transaction to the database
+		// await em.persistAndFlush(transaction);
+
+		const transaction = await addSingleTransactionToDB(
+			date,
+			description,
+			amount,
+			currency
+		);
 
 		// Save the transaction to the database
 		await em.persistAndFlush(transaction);
@@ -420,18 +431,25 @@ export const processTransactions = async (req: Request, res: Response) => {
 				// const parsedDate = parseDate(date);
 
 				// Prepare the transaction data for insertion
-				const transaction = em.create(Transaction, {
-					date: date,
-					parsedDate: dateFormatter(date),
-					description: truncatedDescription,
-					amount: amount * 100,
-					amountInINR: await convertCurrency(amount * 100, currency, date),
-					// amountInINR: amount * 100 * 80,
-					currency,
-					deleted: false, // Default flag for new transactions
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
+				// const transaction = em.create(Transaction, {
+				// 	date: date,
+				// 	parsedDate: dateFormatter(date),
+				// 	description: truncatedDescription,
+				// 	amount: amount * 100,
+				// 	amountInINR: await convertCurrency(amount * 100, currency, date),
+				// 	// amountInINR: amount * 100 * 80,
+				// 	currency,
+				// 	deleted: false, // Default flag for new transactions
+				// 	createdAt: new Date(),
+				// 	updatedAt: new Date(),
+				// });
+
+				const transaction = await addSingleTransactionToDB(
+					date,
+					description,
+					amount,
+					currency
+				);
 
 				transactionArray.push(transaction);
 			})
