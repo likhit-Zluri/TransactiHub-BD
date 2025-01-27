@@ -199,7 +199,7 @@ export const deleteAllNonDeletedTransactions = async () => {
 			await findAndCountPaginatedNonDeletedTransactions();
 
 		if (totalCount === 0) {
-			return [];
+			return 0;
 		}
 
 		// Mark each transaction as deleted (soft delete)

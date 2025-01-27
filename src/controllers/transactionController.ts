@@ -31,7 +31,6 @@ import { UUID } from "crypto";
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
 	let { date, description, amount, currency } = req.body;
-	description = description?.trim();
 
 	// Checking validations and returning corresponding errors
 	const validationErrors = validateTransaction({
@@ -50,6 +49,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 		return;
 	}
 	console.log("body in addTransaction", date, description, amount, currency);
+
+	description = description?.trim();
 
 	try {
 		const existingTransaction = await findSingleTransactionByDateDesc(
@@ -190,6 +191,15 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 		console.log("in deleteAllTransactions");
 
 		const deletedTransactionsCount = await deleteAllNonDeletedTransactions();
+
+		if (deletedTransactionsCount === 0) {
+			res.status(200).json({
+				success: true,
+				message: "No transaction found to delete.",
+				deletedTransactionsCount: 0,
+			});
+			return;
+		}
 
 		res.status(200).json({
 			success: true,
@@ -358,7 +368,6 @@ export const processTransactions = async (req: Request, res: Response) => {
 export const editTransaction = async (req: Request, res: Response) => {
 	const { id } = req.params as { id: UUID }; // Transaction ID from the request URL
 	let { date, description, amount, currency } = req.body; // New data
-	description = description?.trim();
 
 	console.log("body", id, date, description, amount, currency);
 
@@ -378,6 +387,8 @@ export const editTransaction = async (req: Request, res: Response) => {
 			});
 			return;
 		}
+		
+		description = description?.trim();
 
 		// Find the transaction by ID
 		const transaction = await findSingleTransactionByID(id);
