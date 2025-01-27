@@ -15,7 +15,16 @@ import { convertCurrency } from "../utils/currencyConverter";
 
 import { getForkedEntityManager } from "../utils/entityManager";
 import { dateFormatter } from "../utils/dataFormatter";
-import { addSingleTransactionToDB } from "../Database/dataBaseAccessLayer";
+import {
+	addSingleTransaction,
+	deleteAllNonDeletedTransactions,
+	deleteMultipleNonDeletedTransactions,
+	deleteSingleTransaction,
+	findAndCountAllNonDeletedTransactions,
+	findSingleTransactionByDateDesc,
+	findSingleTransactionByID,
+} from "../Database/dataBaseAccessLayer";
+import { UUID } from "crypto";
 
 // Add a single transaction
 export const addTransaction = async (req: Request, res: Response) => {
@@ -40,24 +49,11 @@ export const addTransaction = async (req: Request, res: Response) => {
 	}
 	console.log("body in addTransaction", date, description, amount, currency);
 
-	// // Converting date from dd-mm-yyyy to yyyy-mm-dd
-	// const parseDate = (dateString: string): string => {
-	// 	const [day, month, year] = dateString.split("-");
-	// 	return `${year}-${month}-${day}`;
-	// };
-
-	// const parsedDate = parseDate(date);
-
 	try {
-		const em = await getForkedEntityManager();
-
-		// Find if a transaction with the same date and description already exists
-		const existingTransaction = await em.findOne(Transaction, {
-			parsedDate: dateFormatter(date),
-			description,
-			deleted: false, // Ensure we're checking only non-deleted transactions
-		});
-		console.log("after");
+		const existingTransaction = await findSingleTransactionByDateDesc(
+			date,
+			description
+		);
 
 		if (existingTransaction) {
 			res.status(400).json({
@@ -71,35 +67,12 @@ export const addTransaction = async (req: Request, res: Response) => {
 
 		console.log("Got here");
 
-		// Create and populate a new transaction entry
-		// const transaction = em.create(Transaction, {
-		// 	date: date,
-		// 	description,
-		// 	parsedDate: dateFormatter(date),
-		// 	amount: amount * 100, // As we have a precision of two
-		// 	// to do update type as float in db but it would return a string from db
-		// 	amountInINR: await convertCurrency(amount * 100, currency, date),
-		// 	// amountInINR: amount * 100 * 80,
-		// 	currency,
-		// 	deleted: false,
-		// 	createdAt: new Date(),
-		// 	updatedAt: new Date(),
-		// });
-
-		// console.log("Creatingdata");
-
-		// // Save the transaction to the database
-		// await em.persistAndFlush(transaction);
-
-		const transaction = await addSingleTransactionToDB(
+		const transaction = await addSingleTransaction(
 			date,
 			description,
 			amount,
 			currency
 		);
-
-		// Save the transaction to the database
-		await em.persistAndFlush(transaction);
 
 		res.status(201).json({
 			success: true,
@@ -108,15 +81,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 		});
 		return;
 	} catch (error: unknown) {
-		console.error("Error adding transaction:", error);
-
-		if (error instanceof Error) {
-			res.status(500).json({
-				success: false,
-				message: error.message,
-			});
-			return;
-		}
+		console.error("Error in addTransaction:", error);
 
 		res.status(500).json({
 			success: false,
@@ -130,16 +95,8 @@ export const addTransaction = async (req: Request, res: Response) => {
 // Get all transactions
 export const getAllTransactions = async (req: Request, res: Response) => {
 	try {
-		const em = await getForkedEntityManager();
-
-		// Run queries in parallel using Promise.all
-		const [transactions, totalCount] = await em.findAndCount(
-			Transaction,
-			{ deleted: false }, // dont get the deleted transaction
-			{
-				orderBy: { parsedDate: "DESC" },
-			}
-		);
+		const { transactions, totalCount } =
+			await findAndCountAllNonDeletedTransactions();
 
 		console.log("getAllTransactions response", transactions, totalCount);
 
@@ -167,7 +124,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 		});
 		return;
 	} catch (error: unknown) {
-		console.error("Error fetching transactions", error);
+		console.error("Error in getAllTransactions", error);
 
 		if (error instanceof Error) {
 			res.status(500).json({
@@ -192,13 +149,10 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 // Soft delete a transaction
 export const deleteTransaction = async (req: Request, res: Response) => {
 	try {
-		const em = await getForkedEntityManager();
-
-		// const { id } = req.body;
-		const { id } = req.params;
+		const { id } = req.params as { id: UUID };
 		console.log("id", id);
 
-		const transaction = await em.findOne(Transaction, { id, deleted: false });
+		const transaction = await findSingleTransactionByID(id);
 		// check for already deleted
 
 		if (!transaction) {
@@ -210,8 +164,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 			return;
 		}
 
-		transaction.deleted = true;
-		await em.flush();
+		await deleteSingleTransaction(transaction);
 
 		res.status(200).json({
 			success: true,
@@ -219,15 +172,7 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 		});
 		return;
 	} catch (error: unknown) {
-		console.error("Error soft deleting transaction:", error);
-
-		if (error instanceof Error) {
-			res.status(500).json({
-				success: false,
-				message: error.message,
-			});
-			return;
-		}
+		console.error("Error in deleteTransaction", error);
 
 		res.status(500).json({
 			success: false,
@@ -242,35 +187,15 @@ export const deleteAllTransactions = async (req: Request, res: Response) => {
 	try {
 		console.log("in deleteAllTransactions");
 
-		const em = await getForkedEntityManager();
-
-		// Fetch all active transactions (not deleted)
-		const transactions = await em.find(Transaction, { deleted: false });
-
-		if (transactions.length === 0) {
-			res.status(404).json({
-				success: false,
-				message: "No transactions found to delete.",
-			});
-			return;
-		}
-
-		// Mark each transaction as deleted (soft delete)
-		transactions.forEach((transaction) => {
-			transaction.deleted = true;
-			transaction.updatedAt = new Date(); // Update updatedAt timestamp
-		});
-
-		// Persist changes
-		await em.persistAndFlush(transactions);
+		const deletedTransactionsCount = await deleteAllNonDeletedTransactions();
 
 		res.status(200).json({
 			success: true,
 			message: "All transactions have been deleted successfully.",
-			deletedTransactionsCount: transactions.length,
+			deletedTransactionsCount: deletedTransactionsCount,
 		});
 	} catch (error: unknown) {
-		console.error("Error soft deleting all transactions:", error);
+		console.error("Error in deleteAllTransactions", error);
 
 		if (error instanceof Error) {
 			res.status(500).json({
@@ -304,10 +229,7 @@ export const deleteMultipleTransactions = async (
 	}
 
 	try {
-		const em = await getForkedEntityManager();
-
-		// Mark transactions as deleted by setting delete = true
-		await em.nativeUpdate(Transaction, { id: { $in: ids } }, { deleted: true });
+		await deleteMultipleNonDeletedTransactions(ids);
 
 		res
 			.status(200)
@@ -353,7 +275,7 @@ export const processTransactions = async (req: Request, res: Response) => {
 
 		// Parse the CSV data into JSON format
 		const parsedData: TransactionInput[] = await parseCSV(req.file.buffer);
-		// console.log("parsedData", parsedData);
+		console.log("parsedData", parsedData);
 
 		// Validate the parsed data
 		const { validationErrors, DuplicationErrors, duplicates } =
@@ -412,15 +334,8 @@ export const processTransactions = async (req: Request, res: Response) => {
 				}
 
 				const { date, description, amount, currency } = record;
-				const trimmedDescription = description?.trim();
 
 				// console.log("record", record);
-
-				// Ensure description does not exceed 255 characters
-				const truncatedDescription: string =
-					trimmedDescription.length > 255
-						? trimmedDescription.slice(0, 255)
-						: trimmedDescription;
 
 				// // Convert date from dd-mm-yyyy to yyyy-mm-dd
 				// const parseDate = (dateString: string): string => {
@@ -431,31 +346,24 @@ export const processTransactions = async (req: Request, res: Response) => {
 				// const parsedDate = parseDate(date);
 
 				// Prepare the transaction data for insertion
-				// const transaction = em.create(Transaction, {
-				// 	date: date,
-				// 	parsedDate: dateFormatter(date),
-				// 	description: truncatedDescription,
-				// 	amount: amount * 100,
-				// 	amountInINR: await convertCurrency(amount * 100, currency, date),
-				// 	// amountInINR: amount * 100 * 80,
-				// 	currency,
-				// 	deleted: false, // Default flag for new transactions
-				// 	createdAt: new Date(),
-				// 	updatedAt: new Date(),
-				// });
-
-				const transaction = await addSingleTransactionToDB(
-					date,
-					description,
-					amount,
-					currency
-				);
+				const transaction = em.create(Transaction, {
+					date: date,
+					parsedDate: dateFormatter(date),
+					description: description,
+					amount: amount * 100,
+					amountInINR: await convertCurrency(amount * 100, currency, date),
+					// amountInINR: amount * 100 * 80,
+					currency,
+					deleted: false, // Default flag for new transactions
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
 
 				transactionArray.push(transaction);
 			})
 		);
 
-		console.log("transactionArray", transactionArray);
+		// console.log("transactionArray", transactionArray);
 
 		// Bulk insert the transactions
 		await em.persistAndFlush(transactionArray);

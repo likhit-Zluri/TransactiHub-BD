@@ -31,12 +31,12 @@ export const parseCSV = (buffer: Buffer): Promise<any[]> => {
 					);
 				}
 			})
-			.on("data", (data) => {
+			.on("data", (data: Record<string, string>) => {
 				// Convert amount to a number for consistency
 				const cleanedData = Object.fromEntries(
 					Object.entries(data).map(([key, value]) => [
-						key, // No need to convert key to lowercase again
-						key === "amount" ? Number(value) : value,
+						key,
+						key === "amount" ? Number(value) : value.trim(),
 					])
 				);
 				results.push(cleanedData);

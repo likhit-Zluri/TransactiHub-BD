@@ -1,6 +1,6 @@
 import { Migration } from "@mikro-orm/migrations";
 
-export class Migration20250117_154500 extends Migration {
+export class Migration20250121060641_partial_index extends Migration {
   async up(): Promise<void> {
     // Create a partial unique index for transactions where `isDeleted` is false
     this.addSql(`
