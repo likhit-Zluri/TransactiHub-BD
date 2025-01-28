@@ -139,10 +139,11 @@ export const findAndCountPaginatedNonDeletedTransactions = async (
 	try {
 		const em = await getForkedEntityManager();
 
-		console.log("searchConditions", searchConditions);
+		console.log("searchConditions", searchConditions, offset, pageSizeNumber);
 		const queryOptions: Record<string, any> = {
 			orderBy: { parsedDate: "DESC" },
 			limit: Number(pageSizeNumber),
+			offset: offset,
 		};
 
 		// Include offset only if searchConditions.description does NOT exist
